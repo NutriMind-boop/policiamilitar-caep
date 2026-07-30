@@ -53,7 +53,7 @@ client.once('ready', async () => {
 
 client.on('interactionCreate', async interaction => {
     try {
-        // 0. Redirecionamento unificado para comandos que usam o método modular handleInteraction (ex: /exonerar)
+        // 0. Redirecionamento unificado para comandos que usam o método modular handleInteraction (ex: /exonerar e /painel-funcional)
         const exonerarCommand = client.commands.get('exonerar');
         if (exonerarCommand && typeof exonerarCommand.handleInteraction === 'function') {
             if (
@@ -62,6 +62,17 @@ client.on('interactionCreate', async interaction => {
                 (interaction.isButton() && interaction.customId === 'btn_confirmar_exoneracao')
             ) {
                 return await exonerarCommand.handleInteraction(interaction);
+            }
+        }
+
+        const painelFuncionalCommand = client.commands.get('painel-funcional');
+        if (painelFuncionalCommand && typeof painelFuncionalCommand.handleInteraction === 'function') {
+            if (
+                (interaction.isButton() && interaction.customId === 'btn_abrir_funcional') ||
+                (interaction.isStringSelectMenu() && interaction.customId === 'select_unidade_funcional') ||
+                (interaction.isModalSubmit() && interaction.customId === 'modal_solicitar_funcional')
+            ) {
+                return await painelFuncionalCommand.handleInteraction(interaction);
             }
         }
 
@@ -91,7 +102,6 @@ client.on('interactionCreate', async interaction => {
                 const boletimCommand = client.commands.get('boletim-interno');
                 if (boletimCommand) return await boletimCommand.execute(interaction);
             }
-            // Redirecionamento correto para o botão de emitir certificado do painel unificado
             if (interaction.customId === 'btn_emitir_certificado') {
                 const emitirRegistrosCommand = client.commands.get('emitir-registros');
                 if (emitirRegistrosCommand) return await emitirRegistrosCommand.execute(interaction);
@@ -117,7 +127,6 @@ client.on('interactionCreate', async interaction => {
                     return await boletimCommand.handleModal(interaction);
                 }
             }
-            // Redirecionamento correto para o modal do certificado unificado
             if (interaction.customId === 'modal_certificado') {
                 const emitirRegistrosCommand = client.commands.get('emitir-registros');
                 if (emitirRegistrosCommand && emitirRegistrosCommand.handleModal) {
