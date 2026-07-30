@@ -128,7 +128,7 @@ module.exports = {
 
             // Envia para o canal correto mencionando o cargo correto junto com o embed
             await canal.send({ 
-                content: `<@&1532442931577753621>`, 
+                content: `<@&1525502536990064880>`, 
                 embeds: [embedCertificado] 
             });
 
