@@ -68,6 +68,14 @@ client.on('interactionCreate', async interaction => {
                     return await boletimCommand.execute(interaction);
                 }
             }
+
+            if (interaction.customId === 'btn_certificado') {
+                const certificadoCommand = client.commands.get('certificado');
+                if (certificadoCommand) {
+                    return await certificadoCommand.execute(interaction);
+                }
+            }
+
             return;
         }
 
@@ -79,6 +87,14 @@ client.on('interactionCreate', async interaction => {
                     return await boletimCommand.handleModal(interaction);
                 }
             }
+
+            if (interaction.customId === 'modal_certificado') {
+                const certificadoCommand = client.commands.get('certificado');
+                if (certificadoCommand && certificadoCommand.handleModal) {
+                    return await certificadoCommand.handleModal(interaction);
+                }
+            }
+
             return;
         }
 
