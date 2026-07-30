@@ -110,7 +110,6 @@ module.exports = {
                 .setColor(0x990000)
                 .setThumbnail('https://cdn.discordapp.com/attachments/1502291744228769867/1532397317800333362/image.png')
                 .addFields(
-                    { name: '📁 | 1º INSTRUTOR DO CURSO:', value: `> ${instrutorCard => instrutorCurso}` }, // Ajustado abaixo para garantir a variável correta
                     { name: '📁 | 1º INSTRUTOR DO CURSO:', value: `> ${instrutorCurso}` },
                     { name: '📁 | 2º CURSO REALIZADO:', value: `> ${cursoRealizado}` },
                     { name: '📁 | 3º POLICIAIS PARTICIPANTES:', value: `${policiaisParticipantes.split('\n').map(p => `> ${p}`).join('\n')}` },
