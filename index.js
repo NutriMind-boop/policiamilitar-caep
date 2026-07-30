@@ -53,6 +53,18 @@ client.once('ready', async () => {
 
 client.on('interactionCreate', async interaction => {
     try {
+        // 0. Redirecionamento unificado para comandos que usam o método modular handleInteraction (ex: /exonerar)
+        const exonerarCommand = client.commands.get('exonerar');
+        if (exonerarCommand && typeof exonerarCommand.handleInteraction === 'function') {
+            if (
+                (interaction.isModalSubmit() && interaction.customId === 'modal_exonerar_dados') ||
+                (interaction.isUserSelectMenu() && interaction.customId === 'select_policiais_exonerar') ||
+                (interaction.isButton() && interaction.customId === 'btn_confirmar_exoneracao')
+            ) {
+                return await exonerarCommand.handleInteraction(interaction);
+            }
+        }
+
         // 1. Tratamento para Comandos de Barra (Slash Commands)
         if (interaction.isChatInputCommand()) {
             const command = client.commands.get(interaction.commandName);
