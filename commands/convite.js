@@ -6,6 +6,7 @@ module.exports = {
         .setDescription('Envia o painel do Sistema de Controle de Ingresso e Convites'),
 
     async execute(interaction) {
+        // Se for o comando /convite
         if (interaction.isChatInputCommand()) {
             const embedPainel = new EmbedBuilder()
                 .setTitle('✉️ | SISTEMA DE CONTROLE DE INGRESSO')
@@ -51,6 +52,7 @@ module.exports = {
             return await interaction.reply({ embeds: [embedPainel], components: [row] });
         }
 
+        // Se for o clique no botão que abre o Modal
         if (interaction.isButton() && interaction.customId === 'btn_gerar_convite_modal') {
             const cargoPermitidoId = '1502369295383138395';
 
@@ -94,57 +96,81 @@ module.exports = {
 
             return await interaction.showModal(modal);
         }
+
+        // Se for o envio do Modal (suportando caso o bot chame handleModal ou execute diretamente)
+        if (interaction.isModalSubmit() && interaction.customId === 'modal_gerar_convite') {
+            await this.handleModal(interaction);
+        }
     },
 
     async handleModal(interaction) {
-        if (interaction.customId === 'modal_gerar_convite') {
+        if (!interaction.deferred && !interaction.replied) {
             await interaction.deferReply({ ephemeral: true });
+        }
 
-            const minutosStr = interaction.fields.getTextInputValue('minutos_convite');
-            const quantidadeStr = interaction.fields.getTextInputValue('quantidade_convite');
-            const motivo = interaction.fields.getTextInputValue('motivo_convite');
+        const minutosStr = interaction.fields.getTextInputValue('minutos_convite');
+        const quantidadeStr = interaction.fields.getTextInputValue('quantidade_convite');
+        const motivo = interaction.fields.getTextInputValue('motivo_convite');
 
-            const minutos = parseInt(minutosStr);
-            const quantidadeUsos = parseInt(quantidadeStr);
+        const minutos = parseInt(minutosStr);
+        const quantidadeUsos = parseInt(quantidadeStr);
 
-            if (isNaN(minutos) || minutos <= 0 || isNaN(quantidadeUsos) || quantidadeUsos <= 0) {
-                return await interaction.editReply({ content: '❌ Informe valores numéricos válidos para minutos e usos.' });
+        if (isNaN(minutos) || minutos <= 0 || isNaN(quantidadeUsos) || quantidadeUsos <= 0) {
+            return await interaction.editReply({ content: '❌ Informe valores numéricos válidos para minutos e usos.' });
+        }
+
+        const maxAgeSegundos = minutos * 60;
+        const canalDestino = interaction.channel;
+
+        try {
+            // Cria o link de convite único com o limite de usos exato
+            const convite = await canalDestino.createInvite({
+                maxAge: maxAgeSegundos,
+                maxUses: quantidadeUsos, 
+                unique: true,
+                reason: `Gerado por ${interaction.user.tag} | Motivo: ${motivo}`
+            });
+
+            // Gera o código autenticador aleatório (ex: CAEP77645)
+            const numeroAleatorio = Math.floor(10000 + Math.random() * 90000);
+            const codigoAutenticador = `CAEP${numeroAleatorio}`;
+
+            // Texto plano limpo idêntico ao modelo solicitado (puxa o card do Discord)
+            const textoFinal = 
+                `**Informações do convite:**\n` +
+                `**Código autenticador:** \`${codigoAutenticador}\`\n` +
+                `**Link do convite:** ${convite.url}\n` +
+                `**Qtd. de usos:** \`${quantidadeUsos}\``;
+
+            // Envia a resposta privada para o usuário
+            await interaction.editReply({ content: textoFinal });
+
+            // Envia a Log automática para o canal de ID solicitado
+            const canalLogId = '1529612706624176292';
+            const canalLog = interaction.client.channels.cache.get(canalLogId);
+
+            if (canalLog) {
+                const embedLog = new EmbedBuilder()
+                    .setTitle('📋 | NOVO CONVITE GERADO (LOG)')
+                    .setColor(0x3498DB)
+                    .addFields(
+                        { name: '🔑 | Código Autenticador:', value: `\`${codigoAutenticador}\``, inline: true },
+                        { name: '🔗 | Link:', value: `${convite.url}`, inline: true },
+                        { name: '🔢 | Qtd. de Usos:', value: `\`${quantidadeUsos}\``, inline: true },
+                        { name: '⏳ | Validade:', value: `\`${minutos} minuto(s)\``, inline: true },
+                        { name: '👮 | Solicitante:', value: `${interaction.user} (${interaction.user.tag})`, inline: true },
+                        { name: '📝 | Motivo:', value: `> ${motivo}` }
+                    )
+                    .setTimestamp(); // Registra data e hora exatas do envio
+
+                await canalLog.send({ embeds: [embedLog] });
             }
 
-            const maxAgeSegundos = minutos * 60;
-            const canalDestino = interaction.channel;
-
-            try {
-                // Cria APENAS 1 link de convite configurado com o limite de usos exato
-                const convite = await canalDestino.createInvite({
-                    maxAge: maxAgeSegundos,
-                    maxUses: quantidadeUsos, 
-                    unique: true,
-                    reason: `Gerado por ${interaction.user.tag} | Motivo: ${motivo}`
-                });
-
-                // Gera o código autenticador aleatório (ex: CAEP77645)
-                const numeroAleatorio = Math.floor(10000 + Math.random() * 90000);
-                const codigoAutenticador = `CAEP${numeroAleatorio}`;
-
-                // Texto plano estruturado idêntico ao modelo que você mandou (sem embed)
-                const textoFinal = 
-                    `**Informações do convite:**\n` +
-                    `**Código autenticador:** \`${codigoAutenticador}\`\n` +
-                    `**Link do convite:** ${convite.url}\n` +
-                    `**Qtd. de usos:** \`${quantidadeUsos}\`\n\n` +
-                    `📋 *Motivo:* ${motivo} | ⏳ *Validade:* ${minutos} min | 👮 *Solicitante:* ${interaction.user}`;
-
-                return await interaction.editReply({ 
-                    content: textoFinal 
-                });
-
-            } catch (error) {
-                console.error('Erro ao gerar convite único:', error);
-                return await interaction.editReply({ 
-                    content: '❌ Ocorreu um erro ao tentar gerar o convite. Verifique se o bot possui permissão de "Criar Convite" neste canal.' 
-                });
-            }
+        } catch (error) {
+            console.error('Erro ao gerar convite ou enviar log:', error);
+            return await interaction.editReply({ 
+                content: '❌ Ocorreu um erro ao tentar gerar o convite. Verifique se o bot possui permissão de "Criar Convite" e de enviar mensagens no canal de logs.' 
+            });
         }
     }
 };
