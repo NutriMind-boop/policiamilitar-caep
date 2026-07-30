@@ -53,41 +53,60 @@ client.once('ready', async () => {
 
 client.on('interactionCreate', async interaction => {
     try {
-        // Tratamento para cliques em Botões
+        // 1. Tratamento para Comandos de Barra (Slash Commands)
+        if (interaction.isChatInputCommand()) {
+            const command = client.commands.get(interaction.commandName);
+            if (!command) return;
+            return await command.execute(interaction);
+        }
+
+        // 2. Tratamento Dinâmico para Botões (Evita conflitos e acha o comando pelo prefixo do customId)
         if (interaction.isButton()) {
+            // Exemplo: se o ID for 'btn_certificado', ele procura no comando 'certificado'
+            // Se o ID for 'btn_boletim_interno', ele procura no comando 'boletim-interno'
+            for (const [name, command] of client.commands) {
+                if (interaction.customId.includes(name) || interaction.customId.replace('btn_', '') === name) {
+                    if (typeof command.execute === 'function') {
+                        return await command.execute(interaction);
+                    }
+                }
+            }
+
+            // Fallback manual para IDs específicos que não seguem o padrão direto do nome do comando
             if (interaction.customId === 'abrir_modal_ponto_painel') {
                 const pontoCommand = client.commands.get('ponto');
-                if (pontoCommand) {
-                    return await pontoCommand.execute(interaction);
-                }
+                if (pontoCommand) return await pontoCommand.execute(interaction);
             }
-
             if (interaction.customId === 'btn_boletim_interno') {
                 const boletimCommand = client.commands.get('boletim-interno');
-                if (boletimCommand) {
-                    return await boletimCommand.execute(interaction);
-                }
+                if (boletimCommand) return await boletimCommand.execute(interaction);
             }
-
             if (interaction.customId === 'btn_certificado') {
                 const certificadoCommand = client.commands.get('certificado');
-                if (certificadoCommand) {
-                    return await certificadoCommand.execute(interaction);
-                }
+                if (certificadoCommand) return await certificadoCommand.execute(interaction);
             }
 
             return;
         }
 
-        // Tratamento para envio de Modais (Formulários)
+        // 3. Tratamento Dinâmico para Modais (Formulários)
         if (interaction.isModalSubmit()) {
+            // Procura em todos os comandos se algum possui a função handleModal
+            for (const [name, command] of client.commands) {
+                if (interaction.customId.includes(name) || interaction.customId.replace('modal_', '') === name) {
+                    if (command.handleModal) {
+                        return await command.handleModal(interaction);
+                    }
+                }
+            }
+
+            // Fallback manual para segurança dos modais atuais
             if (interaction.customId === 'modal_boletim_interno') {
                 const boletimCommand = client.commands.get('boletim-interno');
                 if (boletimCommand && boletimCommand.handleModal) {
                     return await boletimCommand.handleModal(interaction);
                 }
             }
-
             if (interaction.customId === 'modal_certificado') {
                 const certificadoCommand = client.commands.get('certificado');
                 if (certificadoCommand && certificadoCommand.handleModal) {
@@ -97,17 +116,6 @@ client.on('interactionCreate', async interaction => {
 
             return;
         }
-
-        // Tratamento para Comandos de Barra (Slash Commands)
-        if (!interaction.isChatInputCommand()) return;
-
-        const command = client.commands.get(interaction.commandName);
-        if (!command) {
-            console.error(`❌ Nenhum comando correspondente a ${interaction.commandName} foi encontrado.`);
-            return;
-        }
-
-        await command.execute(interaction);
 
     } catch (error) {
         console.error('❌ Erro ao processar a interação:', error);
