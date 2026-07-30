@@ -1,11 +1,38 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('boletim-interno')
-        .setDescription('Gerador de boletim interno'),
+        .setDescription('Envia o painel de emissão de Boletim Interno e Certificados'),
 
     async execute(interaction) {
+        // Se for acionado pelo comando /boletim-interno, envia o painel fixo com os dois botões
+        if (interaction.isChatInputCommand()) {
+            const embedPainel = new EmbedBuilder()
+                .setColor(0xE74C3C)
+                .setTitle('Secretaria da Segurança Pública | Registro de boletins')
+                .setDescription('• Utilize o botão abaixo para emitir um boletim interno ou certificado de curso. Eles são enviados de maneira automática, e os caracteres informados nos campos ficam salvos até que o boletim seja enviado!')
+                .setThumbnail('https://cdn.discordapp.com/attachments/1502291744228769867/1532388887920644147/ChatGPT_Image_11_de_jul._de_2026__09_07_19-removebg-preview.png')
+                .setFooter({ text: 'Secretaria da Segurança Pública - Polícia Militar' })
+                .setTimestamp();
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('btn_boletim_interno')
+                    .setLabel('Boletim Interno')
+                    .setStyle(ButtonStyle.Success)
+                    .setEmoji('📝'),
+                new ButtonBuilder()
+                    .setCustomId('btn_certificado')
+                    .setLabel('Emitir certificado')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji('📜')
+            );
+
+            return await interaction.reply({ embeds: [embedPainel], components: [row] });
+        }
+
+        // Se for acionado pelo clique do botão "Boletim Interno" no painel
         if (interaction.isButton() && interaction.customId === 'btn_boletim_interno') {
             const modal = new ModalBuilder()
                 .setCustomId('modal_boletim_interno')
@@ -85,7 +112,7 @@ module.exports = {
 
         await canalDestino.send({ embeds: [embed] });
 
-        await interaction.reply({ 
+        return await interaction.reply({ 
             content: '✅ Boletim interno emitido e enviado com sucesso para o canal oficial!', 
             ephemeral: true 
         });

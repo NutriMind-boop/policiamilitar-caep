@@ -16,12 +16,12 @@ module.exports = {
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId('btn_certificado')
-                    .setLabel('Emitir Certificado')
-                    .setStyle(ButtonStyle.Primary)
-                    .setEmoji('📁')
+                    .setLabel('Emitir certificado')
+                    .setStyle(ButtonStyle.Secondary)
+                    .setEmoji('📜')
             );
 
-            return await interaction.reply({ embeds: [embedPainel], components: [row], ephemeral: true });
+            return await interaction.reply({ embeds: [embedPainel], components: [row] });
         }
 
         // Se for acionado pelo botão, abre o Modal (Painel de preenchimento)
