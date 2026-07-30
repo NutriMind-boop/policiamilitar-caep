@@ -53,29 +53,6 @@ client.once('ready', async () => {
 
 client.on('interactionCreate', async interaction => {
     try {
-        // 0. Redirecionamento unificado para comandos que usam o método modular handleInteraction (ex: /exonerar e /painel-funcional)
-        const exonerarCommand = client.commands.get('exonerar');
-        if (exonerarCommand && typeof exonerarCommand.handleInteraction === 'function') {
-            if (
-                (interaction.isModalSubmit() && interaction.customId === 'modal_exonerar_dados') ||
-                (interaction.isUserSelectMenu() && interaction.customId === 'select_policiais_exonerar') ||
-                (interaction.isButton() && interaction.customId === 'btn_confirmar_exoneracao')
-            ) {
-                return await exonerarCommand.handleInteraction(interaction);
-            }
-        }
-
-        const painelFuncionalCommand = client.commands.get('painel-funcional');
-        if (painelFuncionalCommand && typeof painelFuncionalCommand.handleInteraction === 'function') {
-            if (
-                (interaction.isButton() && interaction.customId === 'btn_abrir_funcional') ||
-                (interaction.isStringSelectMenu() && interaction.customId === 'select_unidade_funcional') ||
-                (interaction.isModalSubmit() && interaction.customId === 'modal_solicitar_funcional')
-            ) {
-                return await painelFuncionalCommand.handleInteraction(interaction);
-            }
-        }
-
         // 1. Tratamento para Comandos de Barra (Slash Commands)
         if (interaction.isChatInputCommand()) {
             const command = client.commands.get(interaction.commandName);
@@ -83,7 +60,17 @@ client.on('interactionCreate', async interaction => {
             return await command.execute(interaction);
         }
 
-        // 2. Tratamento Dinâmico para Botões (Evita conflitos e acha o comando pelo prefixo do customId)
+        // 2. Roteador Modular Universal (Verifica se algum comando quer tratar a interação via handleInteraction)
+        for (const [name, command] of client.commands) {
+            if (typeof command.handleInteraction === 'function') {
+                // Executa se o comando modular optar por lidar com o componente atual
+                // (Isso engloba botões, selects, modais do painel-funcional, exonerar, etc.)
+                const handled = await command.handleInteraction(interaction).catch(() => false);
+                if (handled !== false) return; // Se o comando processou a interação, encerra aqui.
+            }
+        }
+
+        // 3. Tratamento Dinâmico Tradicional para Botões (Compatibilidade com comandos legados)
         if (interaction.isButton()) {
             for (const [name, command] of client.commands) {
                 if (interaction.customId.includes(name) || interaction.customId.replace('btn_', '') === name) {
@@ -93,7 +80,7 @@ client.on('interactionCreate', async interaction => {
                 }
             }
 
-            // Fallback manual para IDs específicos que não seguem o padrão direto do nome do comando
+            // Fallback manual para IDs legados específicos
             if (interaction.customId === 'abrir_modal_ponto_painel') {
                 const pontoCommand = client.commands.get('ponto');
                 if (pontoCommand) return await pontoCommand.execute(interaction);
@@ -110,7 +97,7 @@ client.on('interactionCreate', async interaction => {
             return;
         }
 
-        // 3. Tratamento Dinâmico para Modais (Formulários)
+        // 4. Tratamento Dinâmico Tradicional para Modais (Compatibilidade com comandos legados)
         if (interaction.isModalSubmit()) {
             for (const [name, command] of client.commands) {
                 if (interaction.customId.includes(name) || interaction.customId.replace('modal_', '') === name) {
@@ -120,7 +107,7 @@ client.on('interactionCreate', async interaction => {
                 }
             }
 
-            // Fallback manual para segurança dos modais atuais
+            // Fallback manual para modais legados específicos
             if (interaction.customId === 'modal_boletim_interno') {
                 const boletimCommand = client.commands.get('boletim-interno');
                 if (boletimCommand && boletimCommand.handleModal) {
