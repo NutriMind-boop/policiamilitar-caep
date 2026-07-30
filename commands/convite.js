@@ -6,7 +6,6 @@ module.exports = {
         .setDescription('Envia o painel do Sistema de Controle de Ingresso e Convites'),
 
     async execute(interaction) {
-        // Se for o comando /convite
         if (interaction.isChatInputCommand()) {
             const embedPainel = new EmbedBuilder()
                 .setTitle('✉️ | SISTEMA DE CONTROLE DE INGRESSO')
@@ -52,7 +51,6 @@ module.exports = {
             return await interaction.reply({ embeds: [embedPainel], components: [row] });
         }
 
-        // Se for o clique no botão que abre o Modal
         if (interaction.isButton() && interaction.customId === 'btn_gerar_convite_modal') {
             const cargoPermitidoId = '1502369295383138395';
 
@@ -97,16 +95,13 @@ module.exports = {
             return await interaction.showModal(modal);
         }
 
-        // Se for o envio do Modal (suportando caso o bot chame handleModal ou execute diretamente)
         if (interaction.isModalSubmit() && interaction.customId === 'modal_gerar_convite') {
             await this.handleModal(interaction);
         }
     },
 
     async handleModal(interaction) {
-        if (!interaction.deferred && !interaction.replied) {
-            await interaction.deferReply({ ephemeral: true });
-        }
+        await interaction.reply({ content: '✅ Convite gerado com sucesso! Verifique suas mensagens privadas (DM).', ephemeral: true });
 
         const minutosStr = interaction.fields.getTextInputValue('minutos_convite');
         const quantidadeStr = interaction.fields.getTextInputValue('quantidade_convite');
@@ -116,14 +111,13 @@ module.exports = {
         const quantidadeUsos = parseInt(quantidadeStr);
 
         if (isNaN(minutos) || minutos <= 0 || isNaN(quantidadeUsos) || quantidadeUsos <= 0) {
-            return await interaction.editReply({ content: '❌ Informe valores numéricos válidos para minutos e usos.' });
+            return;
         }
 
         const maxAgeSegundos = minutos * 60;
         const canalDestino = interaction.channel;
 
         try {
-            // Cria o link de convite único com o limite de usos exato
             const convite = await canalDestino.createInvite({
                 maxAge: maxAgeSegundos,
                 maxUses: quantidadeUsos, 
@@ -131,21 +125,18 @@ module.exports = {
                 reason: `Gerado por ${interaction.user.tag} | Motivo: ${motivo}`
             });
 
-            // Gera o código autenticador aleatório (ex: CAEP77645)
             const numeroAleatorio = Math.floor(10000 + Math.random() * 90000);
             const codigoAutenticador = `CAEP${numeroAleatorio}`;
 
-            // Texto plano limpo idêntico ao modelo solicitado (puxa o card do Discord)
             const textoFinal = 
                 `**Informações do convite:**\n` +
                 `**Código autenticador:** \`${codigoAutenticador}\`\n` +
                 `**Link do convite:** ${convite.url}\n` +
                 `**Qtd. de usos:** \`${quantidadeUsos}\``;
 
-            // Envia a resposta privada para o usuário
-            await interaction.editReply({ content: textoFinal });
+            // Envia no chat privado (DM) do usuário como uma mensagem normal, permitindo encaminhamento
+            await interaction.user.send({ content: textoFinal });
 
-            // Envia a Log automática para o canal de ID solicitado
             const canalLogId = '1529612706624176292';
             const canalLog = interaction.client.channels.cache.get(canalLogId);
 
@@ -161,16 +152,19 @@ module.exports = {
                         { name: '👮 | Solicitante:', value: `${interaction.user} (${interaction.user.tag})`, inline: true },
                         { name: '📝 | Motivo:', value: `> ${motivo}` }
                     )
-                    .setTimestamp(); // Registra data e hora exatas do envio
+                    .setTimestamp();
 
                 await canalLog.send({ embeds: [embedLog] });
             }
 
         } catch (error) {
-            console.error('Erro ao gerar convite ou enviar log:', error);
-            return await interaction.editReply({ 
-                content: '❌ Ocorreu um erro ao tentar gerar o convite. Verifique se o bot possui permissão de "Criar Convite" e de enviar mensagens no canal de logs.' 
-            });
+            console.error('Erro ao gerar convite ou enviar DM/log:', error);
+            try {
+                await interaction.followUp({ 
+                    content: '❌ Não foi possível enviar a mensagem no seu privado. Verifique se suas mensagens diretas (DMs) estão abertas para membros deste servidor.', 
+                    ephemeral: true 
+                });
+            } catch (e) {}
         }
     }
 };
