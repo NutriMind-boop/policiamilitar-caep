@@ -26,6 +26,16 @@ module.exports = {
 
         // Se for acionado pelo botão, abre o Modal (Painel de preenchimento)
         if (interaction.isButton() && interaction.customId === 'btn_certificado') {
+            const cargoPermitidoId = '1502369295383138395';
+
+            // Verifica se o usuário possui o cargo obrigatório
+            if (!interaction.member.roles.cache.has(cargoPermitidoId)) {
+                return await interaction.reply({
+                    content: '❌ Você não possui permissão para emitir certificados. Apenas membros autorizados podem utilizar esta função.',
+                    ephemeral: true
+                });
+            }
+
             const modal = new ModalBuilder()
                 .setCustomId('modal_certificado')
                 .setTitle('Emitir Certificado de Curso');
@@ -47,7 +57,7 @@ module.exports = {
             const policiaisInput = new TextInputBuilder()
                 .setCustomId('policiais_participantes')
                 .setLabel('3º POLICIAIS PARTICIPANTES')
-                .setPlaceholder('Ex: Cabo PM Jon Carrera, R.E: 237\nCabo PM Kilian Silva, R.E: 818')
+                .setPlaceholder('Ex: Cabo PM Jon Carrera, R.E: 237 | Cabo PM Kilian Silva, R.E: 818')
                 .setStyle(TextInputStyle.Paragraph)
                 .setRequired(true);
 
