@@ -110,7 +110,11 @@ module.exports = {
             });
         }
 
-        await canalDestino.send({ embeds: [embed] });
+        // Envia a menção do cargo junto com o embed do boletim interno
+        await canalDestino.send({ 
+            content: `<@&1525502536990064880>`, 
+            embeds: [embed] 
+        });
 
         return await interaction.reply({ 
             content: '✅ Boletim interno emitido e enviado com sucesso para o canal oficial!', 

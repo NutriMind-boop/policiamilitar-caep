@@ -88,7 +88,7 @@ module.exports = {
         }
     },
 
-    // Processa o envio do formulário do certificado e envia direto para o canal correto
+    // Processa o envio do formulário do certificado, marca o cargo e envia para o canal correto
     async handleModal(interaction) {
         if (interaction.customId === 'modal_certificado') {
             await interaction.deferReply({ ephemeral: true });
@@ -119,7 +119,11 @@ module.exports = {
                 .setFooter({ text: 'Secretaria da Segurança Pública | Polícia Militar' })
                 .setTimestamp();
 
-            await canal.send({ embeds: [embedCertificado] });
+            // Envia a menção do cargo junto com o embed do certificado
+            await canal.send({ 
+                content: `<@&1525502536990064880>`, 
+                embeds: [embedCertificado] 
+            });
 
             return await interaction.editReply({ content: '✅ Certificado emitido e enviado com sucesso para o canal!' });
         }
