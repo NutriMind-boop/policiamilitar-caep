@@ -62,8 +62,6 @@ client.on('interactionCreate', async interaction => {
 
         // 2. Tratamento Dinâmico para Botões (Evita conflitos e acha o comando pelo prefixo do customId)
         if (interaction.isButton()) {
-            // Exemplo: se o ID for 'btn_certificado', ele procura no comando 'certificado'
-            // Se o ID for 'btn_boletim_interno', ele procura no comando 'boletim-interno'
             for (const [name, command] of client.commands) {
                 if (interaction.customId.includes(name) || interaction.customId.replace('btn_', '') === name) {
                     if (typeof command.execute === 'function') {
@@ -81,9 +79,10 @@ client.on('interactionCreate', async interaction => {
                 const boletimCommand = client.commands.get('boletim-interno');
                 if (boletimCommand) return await boletimCommand.execute(interaction);
             }
-            if (interaction.customId === 'btn_certificado') {
-                const certificadoCommand = client.commands.get('certificado');
-                if (certificadoCommand) return await certificadoCommand.execute(interaction);
+            // Redirecionamento correto para o botão de emitir certificado do painel unificado
+            if (interaction.customId === 'btn_emitir_certificado') {
+                const emitirRegistrosCommand = client.commands.get('emitir-registros');
+                if (emitirRegistrosCommand) return await emitirRegistrosCommand.execute(interaction);
             }
 
             return;
@@ -91,7 +90,6 @@ client.on('interactionCreate', async interaction => {
 
         // 3. Tratamento Dinâmico para Modais (Formulários)
         if (interaction.isModalSubmit()) {
-            // Procura em todos os comandos se algum possui a função handleModal
             for (const [name, command] of client.commands) {
                 if (interaction.customId.includes(name) || interaction.customId.replace('modal_', '') === name) {
                     if (command.handleModal) {
@@ -107,10 +105,11 @@ client.on('interactionCreate', async interaction => {
                     return await boletimCommand.handleModal(interaction);
                 }
             }
+            // Redirecionamento correto para o modal do certificado unificado
             if (interaction.customId === 'modal_certificado') {
-                const certificadoCommand = client.commands.get('certificado');
-                if (certificadoCommand && certificadoCommand.handleModal) {
-                    return await certificadoCommand.handleModal(interaction);
+                const emitirRegistrosCommand = client.commands.get('emitir-registros');
+                if (emitirRegistrosCommand && emitirRegistrosCommand.handleModal) {
+                    return await emitirRegistrosCommand.handleModal(interaction);
                 }
             }
 
