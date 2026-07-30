@@ -8,33 +8,24 @@ module.exports = {
     async execute(interaction) {
         if (interaction.isChatInputCommand()) {
             const embedPainel = new EmbedBuilder()
-                .setTitle('✉️ | SISTEMA DE CONTROLE DE INGRESSO')
+                .setTitle('PAINEL DE GERAÇÃO DE CONVITES')
                 .setDescription(
-                    'Seja bem-vindo ao Sistema Oficial de Convites.\n\n' +
-                    'Este painel foi desenvolvido com a finalidade de realizar o gerenciamento e controle de acesso de novos integrantes ao servidor, garantindo maior organização, segurança e confiabilidade durante o processo de entrada.\n\n' +
-                    'O ingresso ao servidor é realizado exclusivamente mediante convite autorizado, sendo necessário possuir um código de autenticação válido para concluir o procedimento de admissão.'
+                    'Bem-vindo ao Painel Oficial de Geração de Convites.\n\n' +
+                    'Este módulo destina-se à emissão e ao gerenciamento de convites de ingresso, garantindo segurança, controle administrativo e rastreabilidade durante todo o processo de admissão de novos integrantes.'
                 )
                 .setColor(0x2f3136)
+                .setThumbnail('https://cdn.discordapp.com/attachments/1502291744228769867/1532149715842629722/image.png?ex=6a6c75de&is=6a6b245e&hm=53ff2d2deb39c47ba8b14957d16b140dfecfbbc3669fe167c39b4afd9ee45b5a')
                 .addFields(
                     {
-                        name: '🪖 | ORIENTAÇÕES IMPORTANTES',
-                        value: 'Antes de iniciar o processo, atente-se às seguintes informações:\n\n' +
-                                '• O código de convite é individual e deve ser utilizado somente pelo integrante autorizado;\n' +
-                                '• Cada código possui quantidade limitada de utilizações e prazo de validade determinado;\n' +
-                                '• Convites expirados ou já utilizados não poderão ser reaproveitados;\n' +
-                                '• O compartilhamento indevido de códigos poderá ocasionar o cancelamento da autorização concedida;\n' +
-                                '• O acesso ao servidor não garante aprovação ou permanência, estando todos os integrantes sujeitos às normas, regulamentos e procedimentos internos estabelecidos.'
+                        name: 'DIRETRIZES',
+                        value: '• A emissão de convites é restrita aos policiais devidamente autorizados;\n\n' +
+                                '• Todo convite gerado é registrado automaticamente pelo sistema;\n\n' +
+                                '• Os convites possuem prazo de validade e limite de utilização;\n\n' +
+                                '• O uso indevido da ferramenta poderá acarretar responsabilização administrativa.'
                     },
                     {
-                        name: '📋 | PROCESSO DE ENTRADA',
-                        value: 'Após inserir um código válido, o sistema realizará a verificação automática da autorização e, estando em conformidade, permitirá a continuidade do processo de ingresso.\n\n' +
-                                'Durante a permanência no servidor, o integrante deverá manter uma conduta compatível com as diretrizes estabelecidas, respeitando a hierarquia, os procedimentos internos e as determinações administrativas.'
-                    },
-                    {
-                        name: '⚠️ | ATENÇÃO',
-                        value: 'O sistema de convites possui controle automático de registros, sendo armazenadas informações referentes à utilização dos códigos para garantir transparência, organização e segurança no gerenciamento de acessos.\n\n' +
-                                'Caso possua uma autorização válida, clique no botão abaixo e preencha as informações solicitadas pelo sistema.\n\n' +
-                                '📥 | Utilize o botão abaixo para iniciar o processo.'
+                        name: 'GERAÇÃO DE CONVITES',
+                        value: 'Para iniciar o procedimento, clique no botão abaixo. Após a emissão, o código deverá ser encaminhado exclusivamente ao candidato previamente autorizado, observando as normas e diretrizes institucionais.'
                     }
                 )
                 .setFooter({ text: 'Secretaria da Segurança Pública | Sistema de Convites' })
@@ -134,7 +125,6 @@ module.exports = {
                 `**Link do convite:** ${convite.url}\n` +
                 `**Qtd. de usos:** \`${quantidadeUsos}\``;
 
-            // Envia no chat privado (DM) do usuário como uma mensagem normal, permitindo encaminhamento
             await interaction.user.send({ content: textoFinal });
 
             const canalLogId = '1529612706624176292';
