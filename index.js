@@ -60,13 +60,23 @@ client.on('interactionCreate', async interaction => {
             return await command.execute(interaction);
         }
 
-        // 2. Roteador Modular Universal (Verifica se algum comando quer tratar a interação via handleInteraction)
+        // 2. Roteador Modular Universal Seguro (Valida o prefixo do customId ou se pertence ao comando antes de tratar)
         for (const [name, command] of client.commands) {
             if (typeof command.handleInteraction === 'function') {
-                // Executa se o comando modular optar por lidar com o componente atual
-                // (Isso engloba botões, selects, modais do painel-funcional, exonerar, etc.)
+                // Se a interação possui customId, verificamos se ela pertence ao escopo deste comando
+                if (interaction.customId) {
+                    const id = interaction.customId;
+                    const isPainelFuncional = name === 'painel-funcional' && (id.includes('funcional') || id.includes('unidade'));
+                    const isExonerar = name === 'exonerar' && (id.includes('exonerar') || id.includes('policiais'));
+                    const generalMatch = id.includes(name);
+
+                    if (!isPainelFuncional && !isExonerar && !generalMatch) {
+                        continue; // Pula este comando se o ID não tiver relação com ele, evitando falsos positivos
+                    }
+                }
+
                 const handled = await command.handleInteraction(interaction).catch(() => false);
-                if (handled !== false) return; // Se o comando processou a interação, encerra aqui.
+                if (handled !== false) return;
             }
         }
 
