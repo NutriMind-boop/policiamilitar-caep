@@ -6,7 +6,6 @@ module.exports = {
         .setDescription('Envia o painel do Sistema de Controle de Ingresso e Convites'),
 
     async execute(interaction) {
-        // Se for executado como comando de barra (/convite), envia o painel completo
         if (interaction.isChatInputCommand()) {
             const embedPainel = new EmbedBuilder()
                 .setTitle('✉️ | SISTEMA DE CONTROLE DE INGRESSO')
@@ -52,9 +51,8 @@ module.exports = {
             return await interaction.reply({ embeds: [embedPainel], components: [row] });
         }
 
-        // Se for acionado pelo clique no botão, abre o Modal com as opções
         if (interaction.isButton() && interaction.customId === 'btn_gerar_convite_modal') {
-            const cargoPermitidoId = '1502369295383138395'; // Cargo autorizado
+            const cargoPermitidoId = '1502369295383138395';
 
             if (cargoPermitidoId && !interaction.member.roles.cache.has(cargoPermitidoId)) {
                 return await interaction.reply({
@@ -70,7 +68,7 @@ module.exports = {
             const minutosInput = new TextInputBuilder()
                 .setCustomId('minutos_convite')
                 .setLabel('1º VALIDADE (EM MINUTOS)')
-                .setPlaceholder('Ex: 60 (para 1 hora) ou 1440 (para 24 horas)')
+                .setPlaceholder('Ex: 1440')
                 .setStyle(TextInputStyle.Short)
                 .setRequired(true);
 
@@ -84,7 +82,7 @@ module.exports = {
             const motivoInput = new TextInputBuilder()
                 .setCustomId('motivo_convite')
                 .setLabel('3º MOTIVO')
-                .setPlaceholder('Ex: Recrutamento interno / Atestado de curso')
+                .setPlaceholder('Ex: ADM / Recrutamento')
                 .setStyle(TextInputStyle.Paragraph)
                 .setRequired(true);
 
@@ -109,19 +107,15 @@ module.exports = {
             const minutos = parseInt(minutosStr);
             const quantidadeUsos = parseInt(quantidadeStr);
 
-            if (isNaN(minutos) || minutos <= 0) {
-                return await interaction.editReply({ content: '❌ A quantidade de minutos informada é inválida. Digite apenas números inteiros.' });
-            }
-
-            if (isNaN(quantidadeUsos) || quantidadeUsos <= 0 || quantidadeUsos > 50) {
-                return await interaction.editReply({ content: '❌ A quantidade de usos deve ser um número entre 1 e 50.' });
+            if (isNaN(minutos) || minutos <= 0 || isNaN(quantidadeUsos) || quantidadeUsos <= 0) {
+                return await interaction.editReply({ content: '❌ Informe valores numéricos válidos para minutos e usos.' });
             }
 
             const maxAgeSegundos = minutos * 60;
             const canalDestino = interaction.channel;
 
             try {
-                // Cria o link de convite exclusivo com o limite de usos definido
+                // Cria APENAS 1 link de convite configurado com o limite de usos exato
                 const convite = await canalDestino.createInvite({
                     maxAge: maxAgeSegundos,
                     maxUses: quantidadeUsos, 
@@ -133,20 +127,20 @@ module.exports = {
                 const numeroAleatorio = Math.floor(10000 + Math.random() * 90000);
                 const codigoAutenticador = `CAEP${numeroAleatorio}`;
 
-                // Formata exatamente no padrão limpo da sua imagem (sem embed, direto no texto)
-                const textoResposta = 
+                // Texto plano estruturado idêntico ao modelo que você mandou (sem embed)
+                const textoFinal = 
                     `**Informações do convite:**\n` +
                     `**Código autenticador:** \`${codigoAutenticador}\`\n` +
                     `**Link do convite:** ${convite.url}\n` +
                     `**Qtd. de usos:** \`${quantidadeUsos}\`\n\n` +
-                    `📋 *Motivo:* ${motivo} | ⏳ *Validade:* ${minutos} min`;
+                    `📋 *Motivo:* ${motivo} | ⏳ *Validade:* ${minutos} min | 👮 *Solicitante:* ${interaction.user}`;
 
                 return await interaction.editReply({ 
-                    content: textoResposta 
+                    content: textoFinal 
                 });
 
             } catch (error) {
-                console.error('Erro ao gerar convite:', error);
+                console.error('Erro ao gerar convite único:', error);
                 return await interaction.editReply({ 
                     content: '❌ Ocorreu um erro ao tentar gerar o convite. Verifique se o bot possui permissão de "Criar Convite" neste canal.' 
                 });
