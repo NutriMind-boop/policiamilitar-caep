@@ -53,6 +53,7 @@ client.once('ready', async () => {
 
 client.on('interactionCreate', async interaction => {
     try {
+        // Tratamento para cliques em Botões
         if (interaction.isButton()) {
             if (interaction.customId === 'abrir_modal_ponto_painel') {
                 const pontoCommand = client.commands.get('ponto');
@@ -60,9 +61,28 @@ client.on('interactionCreate', async interaction => {
                     return await pontoCommand.execute(interaction);
                 }
             }
+
+            if (interaction.customId === 'btn_boletim_interno') {
+                const boletimCommand = client.commands.get('boletim-interno');
+                if (boletimCommand) {
+                    return await boletimCommand.execute(interaction);
+                }
+            }
             return;
         }
 
+        // Tratamento para envio de Modais (Formulários)
+        if (interaction.isModalSubmit()) {
+            if (interaction.customId === 'modal_boletim_interno') {
+                const boletimCommand = client.commands.get('boletim-interno');
+                if (boletimCommand && boletimCommand.handleModal) {
+                    return await boletimCommand.handleModal(interaction);
+                }
+            }
+            return;
+        }
+
+        // Tratamento para Comandos de Barra (Slash Commands)
         if (!interaction.isChatInputCommand()) return;
 
         const command = client.commands.get(interaction.commandName);
@@ -78,9 +98,9 @@ client.on('interactionCreate', async interaction => {
         
         try {
             if (interaction.deferred || interaction.replied) {
-                await interaction.followUp({ content: '❌ Ocorreu um erro ao executar este comando!', ephemeral: true });
+                await interaction.followUp({ content: '❌ Ocorreu um erro ao executar esta ação!', ephemeral: true });
             } else {
-                await interaction.reply({ content: '❌ Ocorreu um erro ao executar este comando!', ephemeral: true });
+                await interaction.reply({ content: '❌ Ocorreu um erro ao executar esta ação!', ephemeral: true });
             }
         } catch (err) {
             // Ignora se a interação já expirou
