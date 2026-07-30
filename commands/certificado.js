@@ -28,7 +28,7 @@ module.exports = {
         if (interaction.isButton() && interaction.customId === 'btn_certificado') {
             const cargoPermitidoId = '1502369295383138395';
 
-            // Verifica se o usuário possui o cargo obrigatório
+            // Verifica se o usuário possui o cargo obrigatório para abrir o modal
             if (!interaction.member.roles.cache.has(cargoPermitidoId)) {
                 return await interaction.reply({
                     content: '❌ Você não possui permissão para emitir certificados. Apenas membros autorizados podem utilizar esta função.',
@@ -111,8 +111,11 @@ module.exports = {
                 .setFooter({ text: 'Secretaria da Segurança Pública | Polícia Militar' })
                 .setTimestamp();
 
-            // Envia para o canal correto
-            await canal.send({ embeds: [embedCertificado] });
+            // Envia para o canal correto mencionando o cargo correto (1532442931577753621) junto com o embed
+            await canal.send({ 
+                content: `<@&1532442931577753621>`, 
+                embeds: [embedCertificado] 
+            });
 
             return await interaction.editReply({ content: '✅ Certificado emitido e enviado com sucesso para o canal!' });
         }
