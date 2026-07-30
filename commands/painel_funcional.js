@@ -19,8 +19,8 @@ module.exports = {
                 'É obrigatório copiar este código e inseri-lo no campo correspondente durante o preenchimento da solicitação funcional.\n\n' +
                 'Solicitações com dados incompletos, inconsistentes ou divergentes estarão sujeitas à recusa imediata.'
             )
-            .setThumbnail('https://cdn.discordapp.com/attachments/1502291744228769867/1532149715842629722/image.png?ex=6a6c75de&is=6a6b245e&hm=53ff2d2deb39c47ba8b14957d16b140dfecfbbc3669fe167c39b4afd9ee45b5a') // Imagem no canto direito
-            .setImage('https://cdn.discordapp.com/attachments/1502291744228769867/1532150015399690400/ChatGPT_Image_29_de_jul._de_2026_19_17_35.png?ex=6a6c7625&is=6a6b24a5&hm=6e9a87d78e9fc7c877bf46263ed73b12cc6626b01719a9a354cab446e2bdbeb7'); // Imagem no rodapé
+            .setThumbnail('https://cdn.discordapp.com/attachments/1502291744228769867/1532149715842629722/image.png?ex=6a6c75de&is=6a6b245e&hm=53ff2d2deb39c47ba8b14957d16b140dfecfbbc3669fe167c39b4afd9ee45b5a')
+            .setImage('https://cdn.discordapp.com/attachments/1502291744228769867/1532150015399690400/ChatGPT_Image_29_de_jul._de_2026_19_17_35.png?ex=6a6c7625&is=6a6b24a5&hm=6e9a87d78e9fc7c877bf46263ed73b12cc6626b01719a9a354cab446e2bdbeb7');
 
         const botao = new ActionRowBuilder().addComponents(
             new ButtonBuilder()
@@ -42,8 +42,8 @@ module.exports = {
                 .addOptions([
                     {
                         label: 'CAEP',
-                        description: 'Companhia de Ações Especiais de Polícia',
-                        value: 'caep_1525502536990064880',
+                        description: 'CAEP - Companhia de Ações Especiais de Polícia',
+                        value: 'CAEP - Companhia de Ações Especiais de Polícia|1525502536990064880',
                         emoji: '🛡️'
                     }
                 ]);
@@ -68,20 +68,28 @@ module.exports = {
             const graduacaoInput = new TextInputBuilder()
                 .setCustomId('funcional_graduacao')
                 .setLabel('GRADUAÇÃO')
-                .setPlaceholder('Ex: Soldado / Tenente')
+                .setPlaceholder('Ex: Soldado 2ª Classe')
                 .setStyle(TextInputStyle.Short)
                 .setRequired(true);
 
             const nomeReInput = new TextInputBuilder()
                 .setCustomId('funcional_nome_re')
-                .setLabel('NOME E R.E')
-                .setPlaceholder('Ex: Gabriel - 123456')
+                .setLabel('NOME E R.E / IDENTIDADE')
+                .setPlaceholder('Ex: Gabriel Lima | 1776')
+                .setStyle(TextInputStyle.Short)
+                .setRequired(true);
+
+            const codigoInput = new TextInputBuilder()
+                .setCustomId('funcional_codigo')
+                .setLabel('CÓDIGO DE AUTENTICAÇÃO DO CONVITE')
+                .setPlaceholder('Cole o código do convite aqui')
                 .setStyle(TextInputStyle.Short)
                 .setRequired(true);
 
             modal.addComponents(
                 new ActionRowBuilder().addComponents(graduacaoInput),
-                new ActionRowBuilder().addComponents(nomeReInput)
+                new ActionRowBuilder().addComponents(nomeReInput),
+                new ActionRowBuilder().addComponents(codigoInput)
             );
 
             return await interaction.showModal(modal);
@@ -90,34 +98,57 @@ module.exports = {
         if (interaction.isModalSubmit() && interaction.customId === 'modal_solicitar_funcional') {
             const graduacao = interaction.fields.getTextInputValue('funcional_graduacao');
             const nomeRe = interaction.fields.getTextInputValue('funcional_nome_re');
+            const codigo = interaction.fields.getTextInputValue('funcional_codigo');
             
+            const dadosUnidadeStr = selecoesUnidade.get(interaction.user.id) || 'CAEP - Companhia de Ações Especiais de Polícia|1525502536990064880';
             selecoesUnidade.delete(interaction.user.id);
 
-            const unidadeNome = 'CAEP';
-            const cargoId = '1525502536990064880';
+            const [batalhaoNome, cargoId] = dadosUnidadeStr.split('|');
 
+            // Tenta atribuir o cargo automaticamente ao membro
+            try {
+                const membro = await interaction.guild.members.fetch(interaction.user.id);
+                if (membro && cargoId) {
+                    await membro.roles.add(cargoId).catch(() => {});
+                }
+            } catch (err) {
+                // Ignora caso ocorra falha de permissão
+            }
+
+            // Quebra o nome e identidade do campo Nome e R.E para exibir certinho
+            const partesNomeRe = nomeRe.split('|');
+            const nomePuro = partesNomeRe[0] ? partesNomeRe[0].trim() : nomeRe;
+            const identidadePura = partesNomeRe[1] ? partesNomeRe[1].trim() : 'N/A';
+
+            // Monta o embed idêntico ao modelo da imagem enviada
             const embedLog = new EmbedBuilder()
-                .setTitle('📥 | NOVA SOLICITAÇÃO FUNCIONAL')
-                .setColor(0xE74C3C)
-                .setAuthor({ name: `${interaction.user.tag} (${interaction.user.id})`, iconURL: interaction.user.displayAvatarURL() })
-                .addFields(
-                    { name: '🎖️ | Graduação:', value: `\`${graduacao}\``, inline: true },
-                    { name: '👤 | Nome e R.E:', value: `\`${nomeRe}\``, inline: true },
-                    { name: '🏢 | Unidade Selecionada:', value: `\`${unidadeNome}\``, inline: false },
-                    { name: '🔑 | Cargo Vinculado:', value: `<@&${cargoId}> (\`${cargoId}\`)`, inline: false }
+                .setTitle('Solicitação de funcional – (Aprovada)')
+                .setColor(0x2ECC71) // Verde de aprovado igual ao da imagem
+                .setThumbnail(interaction.user.displayAvatarURL({ dynamic: true, size: 512 }))
+                .setDescription(
+                    `• **Nome:** \`${nomePuro}\`\n` +
+                    `• **Identidade:** \`${identidadePura}\`\n` +
+                    `• **Batalhão:** \`${batalhaoNome}\`\n` +
+                    `• **Graduação:** \`${graduacao}\`\n` +
+                    `• **Código utilizado:** \`${codigo}\``
                 )
-                .setTimestamp()
-                .setFooter({ text: 'Secretaria da Segurança Pública – Polícia Militar' });
+                .addFields(
+                    { name: '👤 | Solicitado por:', value: `${interaction.user}`, inline: true },
+                    { name: '🛡️ | Aprovada por:', value: `${interaction.client.user} (Sistema Automático)`, inline: true }
+                )
+                .setFooter({ text: 'Secretaria da Segurança Pública – Polícia Militar' })
+                .setTimestamp();
 
-            const canalAnaliseId = '1514958506451538011'; 
-            const canalAnalise = interaction.client.channels.cache.get(canalAnaliseId);
+            // Canal de destino correto para as funcionais aprovadas
+            const canalLogId = '1512440035805499392'; 
+            const canalLog = interaction.client.channels.cache.get(canalLogId);
 
-            if (canalAnalise) {
-                await canalAnalise.send({ embeds: [embedLog] });
+            if (canalLog) {
+                await canalLog.send({ embeds: [embedLog] });
             }
 
             return await interaction.reply({
-                content: '✅ Sua solicitação funcional foi enviada com sucesso para análise do setor competente!',
+                content: '✅ Sua solicitação funcional foi enviada e processada com sucesso!',
                 ephemeral: true
             });
         }
