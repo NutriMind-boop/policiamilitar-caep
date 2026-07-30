@@ -75,6 +75,8 @@ module.exports = {
 
     async handleSelect(interaction) {
         if (!interaction.customId || interaction.customId !== 'select_policiais_exonerar') return;
+        const stateStore = interaction.client.exonerarSelections || (interaction.client.exonerarSelections = new Map());
+        stateStore.set(interaction.user.id, interaction.values);
         await interaction.deferUpdate();
     },
 
@@ -110,13 +112,13 @@ module.exports = {
 
         let sucessos = 0;
         let falhas = 0;
-        const listaExonerados = [];
+        const embedsLog = [];
 
         for (const userId of selectedUsers) {
             try {
                 const membro = await interaction.guild.members.fetch(userId).catch(() => null);
                 if (membro && membro.kickable) {
-                    // Envia a mensagem no privado (DM) antes de expulsar
+                    // Envia DM de comunicado
                     try {
                         const embedDm = new EmbedBuilder()
                             .setTitle('COMUNICADO DE EXONERAÇÃO')
@@ -129,13 +131,46 @@ module.exports = {
 
                         await membro.send({ embeds: [embedDm] });
                     } catch (err) {
-                        // Caso o membro esteja com a DM fechada, o bot apenas segue para expulsar
+                        // Ignora se estiver com DM fechada
                     }
+
+                    // Pega a lista de cargos (removendo o @everyone) ordenados por hierarquia
+                    const cargos = membro.roles.cache
+                        .filter(r => r.id !== interaction.guild.id)
+                        .sort((a, b) => b.position - a.position)
+                        .map(r => `<@&${r.id}>`)
+                        .join(', ') || 'Nenhum cargo';
+
+                    // Formata a data de entrada no servidor
+                    const joinedAtTimestamp = membro.joinedAt ? `<t:${Math.floor(membro.joinedAt.getTime() / 1000)}:d> às <t:${Math.floor(membro.joinedAt.getTime() / 1000)}:t>` : 'Desconhecida';
+                    const membrosAtuaisCount = interaction.guild.memberCount;
+
+                    // Cria o embed de log individual idêntico ao modelo da imagem solicitada
+                    const embedLogIndividual = new EmbedBuilder()
+                        .setColor(0xE74C3C)
+                        .setAuthor({ 
+                            name: `${interaction.user.tag} | ${interaction.user.id}`, 
+                            iconURL: interaction.user.displayAvatarURL() 
+                        })
+                        .setTitle('Polícia Militar • Jaguaré RP')
+                        .setDescription(`> **${membro.user.tag}** Saiu do servidor!`)
+                        .setThumbnail(membro.user.displayAvatarURL({ dynamic: true, size: 512 }))
+                        .addFields(
+                            { name: '👤 | Membros atuais:', value: `\`#${membrosAtuaisCount} membros\``, inline: true },
+                            { name: '🆔 | Discord ID:', value: `\`${membro.id}\``, inline: true },
+                            { name: '📅 | Membro desde:', value: `\`${joinedAtTimestamp}\``, inline: false },
+                            { name: '🏢 | Unidade:', value: `\`${unidade}\``, inline: true },
+                            { name: '📝 | Motivo:', value: `\`${motivo}\``, inline: true },
+                            { name: '👥 | Cargos:', value: cargos }
+                        )
+                        .setFooter({ text: 'Secretaria da Segurança Pública – Polícia Militar' })
+                        .setTimestamp();
+
+                    embedsLog.push(embedLogIndividual);
 
                     // Expulsa o membro
                     await membro.kick(motivo);
                     sucessos++;
-                    listaExonerados.push(`${membro.user.tag} (\`${membro.id}\`)`);
                 } else {
                     falhas++;
                 }
@@ -157,21 +192,20 @@ module.exports = {
             )
             .setTimestamp();
 
-        if (listaExonerados.length > 0) {
-            embedResultado.addFields({ name: '👤 | Policiais Exonerados:', value: listaExonerados.join('\n').substring(0, 1024) });
-        }
-
         await interaction.editReply({
             content: '✅ Processo de exoneração finalizado com sucesso!',
             embeds: [embedResultado],
             components: []
         });
 
-        const canalLogId = '1529612706624176292';
+        // Envia os logs detalhados para o canal configurado (1514958506451538011)
+        const canalLogId = '1514958506451538011';
         const canalLog = interaction.client.channels.cache.get(canalLogId);
 
         if (canalLog) {
-            await canalLog.send({ embeds: [embedResultado] });
+            for (const embedIndividual of embedsLog) {
+                await canalLog.send({ embeds: [embedIndividual] });
+            }
         }
     },
 
