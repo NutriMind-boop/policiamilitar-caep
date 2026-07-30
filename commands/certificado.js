@@ -96,9 +96,24 @@ module.exports = {
                 return await interaction.editReply({ content: '❌ Canal de destino dos certificados não foi encontrado!' });
             }
 
-            // Montando o Embed idêntico ao modelo da sua imagem
+            // Conta os certificados existentes no canal para gerar o próximo número sequencial crescente
+            let numeroSequencial = 1;
+            try {
+                const mensagens = await canal.messages.fetch({ limit: 100 });
+                const certificadosExistentes = mensagens.filter(m => m.embeds.length > 0 && m.embeds[0].title && m.embeds[0].title.includes('Certificado'));
+                numeroSequencial = certificadosExistentes.size + 1;
+            } catch (error) {
+                console.error('Erro ao buscar mensagens para o contador:', error);
+            }
+
+            // Se você quiser que comece a partir de 1032 e vá subindo (1033, 1034...), basta somar o valor base. 
+            // Se quiser do 001 puro, remova o "+ 1031" e deixe apenas `numeroSequencial`.
+            const numeroFinal = 1031 + numeroSequencial; 
+            const numeroFormatado = String(numeroFinal).padStart(4, '0'); // Formata com 4 dígitos (ex: 1032, 1033) ou use padStart(3, '0')
+
+            // Montando o Embed com o número sequencial dinâmico
             const embedCertificado = new EmbedBuilder()
-                .setTitle('Polícia Militar | Certificado - SSP/1032')
+                .setTitle(`Polícia Militar | Certificado - SSP/${numeroFormatado}`)
                 .setColor(0x990000) // Tarja vermelha lateral
                 .setThumbnail('https://cdn.discordapp.com/attachments/1502291744228769867/1532397317800333362/image.png') // Brasão no canto superior direito
                 .addFields(
@@ -111,13 +126,13 @@ module.exports = {
                 .setFooter({ text: 'Secretaria da Segurança Pública | Polícia Militar' })
                 .setTimestamp();
 
-            // Envia para o canal correto mencionando o cargo correto (1532442931577753621) junto com o embed
+            // Envia para o canal correto mencionando o cargo correto junto com o embed
             await canal.send({ 
                 content: `<@&1532442931577753621>`, 
                 embeds: [embedCertificado] 
             });
 
-            return await interaction.editReply({ content: '✅ Certificado emitido e enviado com sucesso para o canal!' });
+            return await interaction.editReply({ content: `✅ Certificado nº ${numeroFormatado} emitido e enviado com sucesso para o canal!` });
         }
     }
 };
