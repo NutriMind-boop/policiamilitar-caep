@@ -270,24 +270,30 @@ module.exports = {
             return await interaction.showModal(modal);
         }
 
-        // 9. Envio do Modal de Alterar Nome (Garante o emoji 📁 na frente e formatação correta)
+        // 9. Envio do Modal de Alterar Nome (Corrigido para tratar espaços, maiúsculas, caracteres especiais e garantir o envio correto)
         if (interaction.isModalSubmit() && interaction.customId === 'modal_alterar_nome') {
-            let novoNomeDigitado = interaction.fields.getTextInputValue('novo_nome_canal').toLowerCase().trim();
+            const inputDigitado = interaction.fields.getTextInputValue('novo_nome_canal');
             
-            novoNomeDigitado = novoNomeDigitado
+            let novoNomeTratado = inputDigitado
+                .toLowerCase()
                 .normalize('NFD')
                 .replace(/[\u0300-\u036f]/g, '')
                 .replace(/[^a-z0-9]/g, '-')
-                .replace(/-+/g, '-');
+                .replace(/-+/g, '-')
+                .replace(/^-|-$/g, '');
 
-            const novoNomeCanal = novoNomeDigitado.startsWith('📁') ? novoNomeDigitado : `📁-${novoNomeDigitado}`;
+            if (!novoNomeTratado) {
+                return interaction.reply({ content: '❌ O nome fornecido é inválido. Digite caracteres alfanuméricos.', ephemeral: true });
+            }
+
+            const novoNomeCanal = `📁-${novoNomeTratado}`.substring(0, 100);
             
             try {
                 await interaction.channel.setName(novoNomeCanal);
                 return interaction.reply({ content: `✅ Nome do canal alterado com sucesso para: \`${novoNomeCanal}\``, ephemeral: true });
             } catch (err) {
                 console.error('❌ Erro ao alterar nome do canal:', err);
-                return interaction.reply({ content: '❌ Erro ao alterar o nome do canal. Verifique se o nome possui caracteres permitidos pelo Discord.', ephemeral: true });
+                return interaction.reply({ content: '❌ Erro ao alterar o nome do canal. Certifique-se de que o bot possui a permissão "Gerenciar Canais" (`ManageChannels`).', ephemeral: true });
             }
         }
 
