@@ -68,9 +68,10 @@ client.on('interactionCreate', async interaction => {
                     const id = interaction.customId;
                     const isPainelFuncional = name === 'painel-funcional' && (id.includes('funcional') || id.includes('unidade'));
                     const isExonerar = name === 'exonerar' && (id.includes('exonerar') || id.includes('policiais'));
+                    const isAusencia = name === 'painel-ausencia' && (id.includes('ausencia') || id.includes('modal_registrar_ausencia') || id.includes('btn_abrir_ausencia'));
                     const generalMatch = id.includes(name);
 
-                    if (!isPainelFuncional && !isExonerar && !generalMatch) {
+                    if (!isPainelFuncional && !isExonerar && !isAusencia && !generalMatch) {
                         continue; // Pula este comando se o ID não tiver relação com ele, evitando falsos positivos
                     }
                 }
