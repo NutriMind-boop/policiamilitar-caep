@@ -1,9 +1,29 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, UserSelectMenuBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
 
-let contadorAvaliacoes = 1;
 const CANAL_LOG_ESTAGIO = '1529563658680799294';
 const CARGO_PERMITIDO = '1502362884221571235';
 const avaliacoesEmAndamento = new Map();
+
+// Caminho para salvar o contador de avaliações de forma persistente
+const caminhoDados = path.join(__dirname, '..', 'dados_avaliacoes.json');
+
+function obterProximoId() {
+    let contador = 1;
+    try {
+        if (fs.existsSync(caminhoDados)) {
+            const dados = JSON.parse(fs.readFileSync(caminhoDados, 'utf8'));
+            if (dados.ultimoId) {
+                contador = dados.ultimoId + 1;
+            }
+        }
+        fs.writeFileSync(caminhoDados, JSON.stringify({ ultimoId: contador }, null, 2));
+    } catch (err) {
+        console.error('Erro ao gerenciar o arquivo de contador de avaliações:', err);
+    }
+    return `#AE-${String(contador).padStart(4, '0')}`;
+}
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -135,7 +155,7 @@ module.exports = {
                 const mediaFinal = ((n1 + n2 + n3) / 3).toFixed(1);
                 const isAprovado = parseFloat(mediaFinal) >= 7.0;
 
-                const idAvaliacao = `#AE-${String(contadorAvaliacoes++).padStart(4, '0')}`;
+                const idAvaliacao = obterProximoId();
 
                 const agora = new Date();
                 const dataFormatada = agora.toLocaleDateString('pt-BR');
