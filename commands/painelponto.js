@@ -25,7 +25,6 @@ if (!global.pontosAtivos) {
     global.pontosAtivos = new Map();
 }
 
-// Conjunto para evitar duplo clique instantâneo do mesmo usuário
 const travadosNoClique = new Set();
 const ID_CANAL_PONTO = '1532026308471816203';
 
@@ -74,12 +73,10 @@ module.exports = {
             if (i.customId === 'abrir_modal_ponto_painel') {
                 const userId = i.user.id;
 
-                // Bloqueia cliques duplicados instantâneos na mesma fração de segundo
                 if (travadosNoClique.has(userId)) return;
                 travadosNoClique.add(userId);
 
                 try {
-                    // Validação rápida de ponto ativo existente
                     for (const dados of global.pontosAtivos.values()) {
                         if (dados.userId === userId) {
                             travadosNoClique.delete(userId);
@@ -138,11 +135,9 @@ module.exports = {
                         new ActionRowBuilder().addComponents(auxiliar2Input),
                     );
 
-                    // Exibe o modal imediatamente para evitar timeout de interação
                     await i.showModal(modal);
                     travadosNoClique.delete(userId);
 
-                    // Coleta o envio do modal de forma isolada
                     const submitted = await i.awaitModalSubmit({
                         time: 300 * 1000, 
                         filter: sub => sub.user.id === userId && sub.customId === modalId,
@@ -150,7 +145,6 @@ module.exports = {
 
                     if (!submitted) return;
 
-                    // Validação de segurança final pós-submissão
                     for (const dados of global.pontosAtivos.values()) {
                         if (dados.userId === userId) {
                             return await submitted.reply({ 

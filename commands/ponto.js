@@ -26,7 +26,6 @@ if (!global.pontosAtivos) {
     global.pontosAtivos = new Map();
 }
 
-// Trava de segurança para evitar duplo clique ou execuções simultâneas do comando
 const travadosNoClique = new Set();
 const ID_CANAL_PONTO = '1532026308471816203';
 
@@ -45,7 +44,6 @@ module.exports = {
             });
         }
 
-        // Validação imediata de ponto ativo
         for (const dados of global.pontosAtivos.values()) {
             if (dados.userId === userId) {
                 return interaction.reply({ 
@@ -116,7 +114,6 @@ module.exports = {
 
             if (!submitted) return;
 
-            // Validação atômica final pós-submissão
             for (const dados of global.pontosAtivos.values()) {
                 if (dados.userId === userId) {
                     return await submitted.reply({ 
@@ -175,7 +172,7 @@ module.exports = {
                     .setEmoji('🛑')
             );
 
-            const canalDestino = await submitted.client.channels.fetch(ID_CANAL_PONTO).catch(() => null);
+            const canalDestino = submitted.guild ? submitted.guild.channels.cache.get(ID_CANAL_PONTO) || await submitted.client.channels.fetch(ID_CANAL_PONTO).catch(() => null) : null;
 
             if (!canalDestino) {
                 return await submitted.reply({ content: '❌ Erro: Não foi possível encontrar o canal de destino do ponto configurado.', ephemeral: true });
