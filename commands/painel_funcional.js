@@ -3,6 +3,24 @@ const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder
 const selecoesUnidade = new Map();
 const CARGO_AUTORIZADO = '1502362863149518898';
 
+// Lista de patentes para o menu de configuração
+const PATENTES_OPCOES = [
+    { label: 'Soldado 2ª Classe', value: 'patente_sd2', emoji: '⬛' },
+    { label: 'Soldado 1ª Classe', value: 'patente_sd1', emoji: '🔹' },
+    { label: 'Cabo', value: 'patente_cb', emoji: '🔹' },
+    { label: '3º Sargento', value: 'patente_3sgt', emoji: '🔸' },
+    { label: '2º Sargento', value: 'patente_2sgt', emoji: '🔸' },
+    { label: '1º Sargento', value: 'patente_1sgt', emoji: '🔸' },
+    { label: 'Subtenente', value: 'patente_subtenente', emoji: '⭐' },
+    { label: 'Aspirante a Oficial', value: 'patente_aspirante', emoji: '⭐' },
+    { label: '2º Tenente', value: 'patente_2ten', emoji: '⬛' },
+    { label: '1º Tenente', value: 'patente_1ten', emoji: '⬛' },
+    { label: 'Capitão', value: 'patente_cap', emoji: '⬛' },
+    { label: 'Major', value: 'patente_maj', emoji: '👑' },
+    { label: 'Tenente Coronel', value: 'patente_ten_cel', emoji: '👑' },
+    { label: 'Coronel', value: 'patente_cel', emoji: '👑' }
+];
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('painel-funcional')
@@ -37,7 +55,7 @@ module.exports = {
 
     async handleInteraction(interaction) {
         try {
-            // 1. Botão do painel que abre o menu de seleção
+            // 1. Botão do painel que abre o menu de seleção de unidade
             if (interaction.isButton() && interaction.customId === 'btn_abrir_funcional') {
                 const selectMenu = new StringSelectMenuBuilder()
                     .setCustomId('select_unidade_funcional')
@@ -60,7 +78,7 @@ module.exports = {
                 });
             }
 
-            // 2. Menu de seleção que abre o modal sem o campo "Identidade"
+            // 2. Menu de seleção da unidade que abre o modal
             if (interaction.isStringSelectMenu() && interaction.customId === 'select_unidade_funcional') {
                 const valorSelecionado = interaction.values[0];
                 selecoesUnidade.set(interaction.user.id, valorSelecionado);
@@ -99,7 +117,7 @@ module.exports = {
                 return await interaction.showModal(modal);
             }
 
-            // 3. Envio do formulário preenchido gerando o embed pendente e os dois botões
+            // 3. Envio do formulário preenchido gerando o embed pendente e os 3 botões (Aprovar, Recusar, Configurar)
             if (interaction.isModalSubmit() && interaction.customId === 'modal_solicitar_funcional') {
                 const graduacao = interaction.fields.getTextInputValue('funcional_graduacao');
                 const nomeRe = interaction.fields.getTextInputValue('funcional_nome_re');
@@ -137,7 +155,11 @@ module.exports = {
                         .setCustomId('btn_recusar_funcional')
                         .setLabel('Recusar')
                         .setStyle(ButtonStyle.Danger)
-                        .setEmoji('❌')
+                        .setEmoji('❌'),
+                    new ButtonBuilder()
+                        .setCustomId('btn_configurar_patente')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('⚙️')
                 );
 
                 const canalLogId = '1512440035805499392'; 
@@ -153,7 +175,73 @@ module.exports = {
                 });
             }
 
-            // 4. Tratamento dos botões Aprovar / Recusar restritos ao cargo específico
+            // 4. Clique no botão de Configurar Patente (Engrenagem)
+            if (interaction.isButton() && interaction.customId === 'btn_configurar_patente') {
+                if (!interaction.member.roles.cache.has(CARGO_AUTORIZADO)) {
+                    return await interaction.reply({ content: '❌ Você não tem permissão para configurar esta funcional!', ephemeral: true });
+                }
+
+                const selectPatente = new StringSelectMenuBuilder()
+                    .setCustomId('select_patente_cargo')
+                    .setPlaceholder('⭐ | Selecione a patente:')
+                    .addOptions(PATENTES_OPCOES);
+
+                const rowSelect = new ActionRowBuilder().addComponents(selectPatente);
+                const rowVoltar = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('btn_voltar_painel')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('🔄')
+                );
+
+                return await interaction.update({
+                    components: [rowSelect, rowVoltar]
+                });
+            }
+
+            // 5. Botão de Voltar (setinha) para retornar aos botões originais do log
+            if (interaction.isButton() && interaction.customId === 'btn_voltar_painel') {
+                if (!interaction.member.roles.cache.has(CARGO_AUTORIZADO)) {
+                    return await interaction.reply({ content: '❌ Sem permissão!', ephemeral: true });
+                }
+
+                const botoesAcao = new ActionRowBuilder().addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('btn_aprovar_funcional')
+                        .setLabel('Aprovar')
+                        .setStyle(ButtonStyle.Success)
+                        .setEmoji('✅'),
+                    new ButtonBuilder()
+                        .setCustomId('btn_recusar_funcional')
+                        .setLabel('Recusar')
+                        .setStyle(ButtonStyle.Danger)
+                        .setEmoji('❌'),
+                    new ButtonBuilder()
+                        .setCustomId('btn_configurar_patente')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('⚙️')
+                );
+
+                return await interaction.update({
+                    components: [botoesAcao]
+                });
+            }
+
+            // 6. Seleção da Patente no menu suspenso
+            if (interaction.isStringSelectMenu() && interaction.customId === 'select_patente_cargo') {
+                if (!interaction.member.roles.cache.has(CARGO_AUTORIZADO)) {
+                    return await interaction.reply({ content: '❌ Sem permissão!', ephemeral: true });
+                }
+
+                const patenteEscolhida = interaction.values[0];
+                
+                return await interaction.reply({
+                    content: `✅ Patente selecionada com sucesso!`,
+                    ephemeral: true
+                });
+            }
+
+            // 7. Tratamento dos botões Aprovar / Recusar restritos ao cargo específico
             if (interaction.isButton() && (interaction.customId === 'btn_aprovar_funcional' || interaction.customId === 'btn_recusar_funcional')) {
                 if (!interaction.member.roles.cache.has(CARGO_AUTORIZADO)) {
                     return await interaction.reply({
@@ -162,7 +250,6 @@ module.exports = {
                     });
                 }
 
-                // Evita o erro de timeout do Discord avisando que o bot está processando
                 await interaction.deferUpdate();
 
                 const embedAtual = interaction.message.embeds[0];
@@ -179,7 +266,6 @@ module.exports = {
                     originalEmbed.setTitle('Solicitação de funcional – (Aprovada)');
                     originalEmbed.setColor(0x2ECC71); // Verde
 
-                    // Atribui o cargo automaticamente apenas se aprovado
                     if (solicitanteId) {
                         try {
                             const membroSolicitante = await interaction.guild.members.fetch(solicitanteId);
@@ -193,14 +279,13 @@ module.exports = {
                     originalEmbed.setColor(0xE74C3C); // Vermelho
                 }
 
-                // Atualiza o campo com o nome/menção do policial exato que clicou no botão
                 if (fields && fields[1]) {
                     fields[1].value = `${interaction.user}`;
                 }
 
                 await interaction.message.edit({
                     embeds: [originalEmbed],
-                    components: [] // Remove os botões após a decisão
+                    components: []
                 });
 
                 return await interaction.followUp({
