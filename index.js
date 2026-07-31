@@ -63,15 +63,27 @@ client.on('interactionCreate', async interaction => {
         // 2. Roteador Modular Universal Seguro (Valida o prefixo do customId ou se pertence ao comando antes de tratar)
         for (const [name, command] of client.commands) {
             if (typeof command.handleInteraction === 'function') {
-                // Se a interação possui customId, verificamos se ela pertence ao escopo deste comando
                 if (interaction.customId) {
                     const id = interaction.customId;
                     const isPainelFuncional = name === 'painel-funcional' && (id.includes('funcional') || id.includes('unidade'));
                     const isExonerar = name === 'exonerar' && (id.includes('exonerar') || id.includes('policiais'));
                     const isAusencia = name === 'painel-ausencia' && (id.includes('ausencia') || id.includes('modal_registrar_ausencia') || id.includes('btn_abrir_ausencia'));
+                    
+                    // Adicionando suporte seguro para o atendimento-rh (menus de select de usuarios, botoes e modais)
+                    const isAtendimentoRh = name === 'atendimento-rh' && (
+                        id.includes('atendimento_rh') || 
+                        id.includes('ticket') || 
+                        id.includes('btn_fechar_ticket') || 
+                        id.includes('btn_adicionar_usuario') || 
+                        id.includes('btn_remover_usuario') || 
+                        id.includes('btn_alterar_nome') ||
+                        id.includes('select_adicionar_usuario') ||
+                        id.includes('select_remover_usuario')
+                    );
+
                     const generalMatch = id.includes(name);
 
-                    if (!isPainelFuncional && !isExonerar && !isAusencia && !generalMatch) {
+                    if (!isPainelFuncional && !isExonerar && !isAusencia && !isAtendimentoRh && !generalMatch) {
                         continue; // Pula este comando se o ID não tiver relação com ele, evitando falsos positivos
                     }
                 }
