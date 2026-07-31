@@ -1,6 +1,28 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const fs = require('fs');
+const path = require('path');
 
-let contadorPonto = 0;
+// Caminho para salvar o contador de ponto de forma persistente
+const caminhoDadosPonto = path.join(__dirname, '..', 'dados_ponto.json');
+
+function obterProximoIdPonto() {
+    let contador = 0;
+    try {
+        if (fs.existsSync(caminhoDadosPonto)) {
+            const dados = JSON.parse(fs.readFileSync(caminhoDadosPonto, 'utf8'));
+            if (dados.ultimoId) {
+                contador = dados.ultimoId;
+            }
+        }
+        contador++;
+        fs.writeFileSync(caminhoDadosPonto, JSON.stringify({ ultimoId: contador }, null, 2));
+    } catch (err) {
+        console.error('Erro ao gerenciar o arquivo de contador de pontos:', err);
+        contador = 1;
+    }
+    return String(contador).padStart(3, '0');
+}
+
 // Torna a lista global para que o /painelponto e outros comandos possam checar se há pontos abertos
 if (!global.pontosAtivos) {
     global.pontosAtivos = new Map();
@@ -13,8 +35,9 @@ module.exports = {
         .setDescription('Abre um novo painel de ponto da equipe'),
 
     async execute(interaction) {
-        // Validação: Verifica se o usuário já possui algum ponto aberto na lista global
         const userId = interaction.user.id;
+
+        // Validação imediata: Verifica se o usuário já possui algum ponto aberto antes de abrir o modal
         for (const [_, dados] of global.pontosAtivos.entries()) {
             if (dados.userId === userId) {
                 return interaction.reply({ 
@@ -79,7 +102,7 @@ module.exports = {
                 filter: i => i.user.id === interaction.user.id && i.customId === 'modal_ponto',
             });
 
-            // Validação dupla caso o usuário abra o modal e demore para preencher, abrindo outro ponto paralelamente
+            // Validação dupla pós-modal para prevenir concorrência
             for (const [_, dados] of global.pontosAtivos.entries()) {
                 if (dados.userId === userId) {
                     return submitted.reply({ 
@@ -89,8 +112,7 @@ module.exports = {
                 }
             }
 
-            contadorPonto++;
-            const numeroFormatado = String(contadorPonto).padStart(3, '0');
+            const numeroFormatado = obterProximoIdPonto();
             
             const viatura = submitted.fields.getTextInputValue('viatura');
             const motorista = submitted.fields.getTextInputValue('motorista');
@@ -100,7 +122,7 @@ module.exports = {
             const listaObservacoes = [];
 
             const nomeCriador = submitted.member ? submitted.member.displayName : submitted.user.username;
-            const userIdCriador = submitted.user.id; // Salvando o ID para validação de encerramento
+            const userIdCriador = submitted.user.id;
 
             const dataAtual = new Date().toLocaleDateString('pt-BR');
             const timestampInicio = Date.now(); 
@@ -129,7 +151,6 @@ module.exports = {
                 .addFields(montarCampos(listaObservacoes))
                 .setFooter({ text: `Ponto aberto por ${nomeCriador} • ${horaAberturaStr}` });
 
-            // Botões na mensagem enviada no canal: Colocar Observação e Encerrar Ponto
             const row = new ActionRowBuilder().addComponents(
                 new ButtonBuilder()
                     .setCustomId('adicionar_obs')
@@ -142,7 +163,6 @@ module.exports = {
                     .setEmoji('🛑')
             );
 
-            // Busca o canal correto pelo ID fixo
             const canalDestino = await submitted.client.channels.fetch(ID_CANAL_PONTO).catch(() => null);
 
             await submitted.reply({ content: '✅ Ponto aberto com sucesso!', ephemeral: true });
@@ -164,7 +184,7 @@ module.exports = {
                 dataAtual,
                 timestampInicio,
                 nomeCriador,
-                userId: userIdCriador, // Armazenando o ID de quem abriu
+                userId: userIdCriador,
                 horaAberturaStr,
                 mensagem: mensagemPonto
             });
@@ -175,7 +195,6 @@ module.exports = {
                 const dados = global.pontosAtivos.get(mensagemPonto.id);
                 if (!dados) return;
 
-                // BOTÃO DE ADICIONAR OBSERVAÇÃO
                 if (i.customId === 'adicionar_obs') {
                     const modalObs = new ModalBuilder()
                         .setCustomId('modal_obs')
@@ -218,9 +237,7 @@ module.exports = {
                     }
                 }
 
-                // BOTÃO DE ENCERRAR PONTO (COM TRAVA DE SEGURANÇA)
                 if (i.customId === 'encerrar_ponto_individual') {
-                    // TRAVA: Apenas quem abriu o ponto pode encerrá-lo
                     if (i.user.id !== dados.userId) {
                         return i.reply({ content: '❌ Apenas o militar que abriu este ponto pode encerra-lo!', ephemeral: true });
                     }
