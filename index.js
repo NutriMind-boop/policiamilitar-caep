@@ -65,7 +65,16 @@ client.on('interactionCreate', async interaction => {
             if (typeof command.handleInteraction === 'function') {
                 if (interaction.customId) {
                     const id = interaction.customId;
-                    const isPainelFuncional = name === 'painel-funcional' && (id.includes('funcional') || id.includes('unidade'));
+                    
+                    // CORRIGIDO: Adicionando todos os IDs exatos usados no painel-funcional
+                    const isPainelFuncional = name === 'painel-funcional' && (
+                        id.includes('funcional') || 
+                        id.includes('unidade') || 
+                        id.includes('configurar_patente') || 
+                        id.includes('voltar_painel') || 
+                        id.includes('patente_cargo')
+                    );
+
                     const isExonerar = name === 'exonerar' && (id.includes('exonerar') || id.includes('policiais'));
                     const isAusencia = name === 'painel-ausencia' && (id.includes('ausencia') || id.includes('modal_registrar_ausencia') || id.includes('btn_abrir_ausencia'));
                     
