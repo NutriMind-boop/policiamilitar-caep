@@ -1,5 +1,17 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 
+// Função auxiliar para remover o cargo de forma segura
+async function removerCargoAtrasado(member, cargoId) {
+    try {
+        if (member && member.roles.cache.has(cargoId)) {
+            await member.roles.remove(cargoId);
+            console.log(`✅ Cargo de ausência removido automaticamente de ${member.user.tag}`);
+        }
+    } catch (error) {
+        console.error(`❌ Erro ao remover cargo automaticamente de ${member?.user?.tag || 'usuário desconhecido'}:`, error);
+    }
+}
+
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('painel-ausencia')
@@ -69,9 +81,11 @@ module.exports = {
             const matchDias = duracaoTexto.match(/\d+/);
             const qtdDias = matchDias ? parseInt(matchDias[0]) : 1;
 
-            // Calcula a data de retorno somando os dias à data atual
+            // Calcula a data de retorno exata (definindo o horário para 00:00:00 do dia de retorno)
             const dataRetorno = new Date();
             dataRetorno.setDate(dataRetorno.getDate() + qtdDias);
+            dataRetorno.setHours(0, 0, 0, 0);
+
             const dataFormatada = dataRetorno.toLocaleDateString('pt-BR');
 
             // Atribui o cargo automaticamente
@@ -79,6 +93,24 @@ module.exports = {
                 await interaction.member.roles.add(cargoId);
             } catch (error) {
                 console.error('❌ Erro ao adicionar o cargo de ausência:', error);
+            }
+
+            // Agenda a remoção automática do cargo para o momento do retorno
+            const agora = new Date().getTime();
+            const tempoAteRetorno = dataRetorno.getTime() - agora;
+
+            if (tempoAteRetorno > 0) {
+                const memberId = interaction.member.id;
+                const guild = interaction.guild;
+
+                setTimeout(async () => {
+                    try {
+                        const memberAtualizado = await guild.members.fetch(memberId).catch(() => null);
+                        await removerCargoAtrasado(memberAtualizado, cargoId);
+                    } catch (err) {
+                        console.error('❌ Erro ao executar agendamento de remoção de cargo:', err);
+                    }
+                }, tempoAteRetorno);
             }
 
             // Monta o Embed com todos os campos destacados e nome clicável
@@ -103,7 +135,7 @@ module.exports = {
             }
 
             // Responde de forma privada para o usuário avisando que deu certo
-            await interaction.reply({ content: '✅ Ausência registrada, cargo aplicado e encaminhada para o canal de registros com sucesso!', ephemeral: true });
+            await interaction.reply({ content: '✅ Ausência registrada, cargo aplicado, agendado para remoção automática e encaminhado para o canal de registros!', ephemeral: true });
             return true;
         }
 
