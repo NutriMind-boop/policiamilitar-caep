@@ -70,6 +70,10 @@ module.exports = {
         const collectorPainel = mensagemPainel.createMessageComponentCollector();
 
         collectorPainel.on('collect', async i => {
+            if (i.customId === 'adicionar_obs' || i.customId === 'encerrar_ponto_individual') {
+                return;
+            }
+
             if (i.customId === 'abrir_modal_ponto_painel') {
                 const userId = i.user.id;
 
