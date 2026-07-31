@@ -24,6 +24,9 @@ function obterProximoIdPonto() {
 if (!global.pontosAtivos) {
     global.pontosAtivos = new Map();
 }
+
+// Conjunto para evitar duplo clique instantâneo do mesmo usuário
+const travadosNoClique = new Set();
 const ID_CANAL_PONTO = '1532026308471816203';
 
 module.exports = {
@@ -71,75 +74,86 @@ module.exports = {
             if (i.customId === 'abrir_modal_ponto_painel') {
                 const userId = i.user.id;
 
-                // Validação de ponto ativo
-                for (const dados of global.pontosAtivos.values()) {
-                    if (dados.userId === userId) {
-                        return i.reply({ 
-                            content: '❌ Você já possui um ponto aberto, encerre o atual antes de abrir outro.', 
-                            ephemeral: true 
-                        });
-                    }
-                }
-
-                const modal = new ModalBuilder()
-                    .setCustomId(`modal_ponto_${i.id}`)
-                    .setTitle('Registro de Ponto da Equipe');
-
-                const viaturaInput = new TextInputBuilder()
-                    .setCustomId('viatura')
-                    .setLabel('Modelo e Prefixo da Viatura')
-                    .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('Ex: Trailblazer - E-M05011')
-                    .setRequired(true);
-
-                const motoristaInput = new TextInputBuilder()
-                    .setCustomId('motorista')
-                    .setLabel('Motorista (Graduação, Nome e R:E)')
-                    .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('Ex: Cb PM Silva - 12345')
-                    .setRequired(true);
-
-                const chefeInput = new TextInputBuilder()
-                    .setCustomId('chefe')
-                    .setLabel('Chefe de barca (Graduação, Nome e R:E)')
-                    .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('Ex: Sgt PM Oliveira - 54321')
-                    .setRequired(true);
-
-                const auxiliar1Input = new TextInputBuilder()
-                    .setCustomId('auxiliar1')
-                    .setLabel('1º Auxiliar (Grad, Nome e R:E)')
-                    .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('Ex: Sd PM Santos - 11111')
-                    .setRequired(false);
-
-                const auxiliar2Input = new TextInputBuilder()
-                    .setCustomId('auxiliar2')
-                    .setLabel('2º Auxiliar (Grad, Nome e R:E)')
-                    .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('Ex: Sd PM Costa - 22222')
-                    .setRequired(false);
-
-                modal.addComponents(
-                    new ActionRowBuilder().addComponents(viaturaInput),
-                    new ActionRowBuilder().addComponents(motoristaInput),
-                    new ActionRowBuilder().addComponents(chefeInput),
-                    new ActionRowBuilder().addComponents(auxiliar1Input),
-                    new ActionRowBuilder().addComponents(auxiliar2Input),
-                );
-
-                await i.showModal(modal);
+                // Bloqueia cliques duplicados instantâneos na mesma fração de segundo
+                if (travadosNoClique.has(userId)) return;
+                travadosNoClique.add(userId);
 
                 try {
-                    const submitted = await i.awaitModalSubmit({
-                        time: 300 * 1000, 
-                        filter: sub => sub.user.id === userId && sub.customId === `modal_ponto_${i.id}`,
-                    });
-
-                    // Dupla checagem pós-envio do modal
+                    // Validação rápida de ponto ativo existente
                     for (const dados of global.pontosAtivos.values()) {
                         if (dados.userId === userId) {
-                            return submitted.reply({ 
+                            travadosNoClique.delete(userId);
+                            return await i.reply({ 
+                                content: '❌ Você já possui um ponto aberto, encerre o atual antes de abrir outro.', 
+                                ephemeral: true 
+                            });
+                        }
+                    }
+
+                    const modalId = `modal_ponto_${userId}_${Date.now()}`;
+                    const modal = new ModalBuilder()
+                        .setCustomId(modalId)
+                        .setTitle('Registro de Ponto da Equipe');
+
+                    const viaturaInput = new TextInputBuilder()
+                        .setCustomId('viatura')
+                        .setLabel('Modelo e Prefixo da Viatura')
+                        .setStyle(TextInputStyle.Short)
+                        .setPlaceholder('Ex: Trailblazer - E-M05011')
+                        .setRequired(true);
+
+                    const motoristaInput = new TextInputBuilder()
+                        .setCustomId('motorista')
+                        .setLabel('Motorista (Graduação, Nome e R:E)')
+                        .setStyle(TextInputStyle.Short)
+                        .setPlaceholder('Ex: Cb PM Silva - 12345')
+                        .setRequired(true);
+
+                    const chefeInput = new TextInputBuilder()
+                        .setCustomId('chefe')
+                        .setLabel('Chefe de barca (Graduação, Nome e R:E)')
+                        .setStyle(TextInputStyle.Short)
+                        .setPlaceholder('Ex: Sgt PM Oliveira - 54321')
+                        .setRequired(true);
+
+                    const auxiliar1Input = new TextInputBuilder()
+                        .setCustomId('auxiliar1')
+                        .setLabel('1º Auxiliar (Grad, Nome e R:E)')
+                        .setStyle(TextInputStyle.Short)
+                        .setPlaceholder('Ex: Sd PM Santos - 11111')
+                        .setRequired(false);
+
+                    const auxiliar2Input = new TextInputBuilder()
+                        .setCustomId('auxiliar2')
+                        .setLabel('2º Auxiliar (Grad, Nome e R:E)')
+                        .setStyle(TextInputStyle.Short)
+                        .setPlaceholder('Ex: Sd PM Costa - 22222')
+                        .setRequired(false);
+
+                    modal.addComponents(
+                        new ActionRowBuilder().addComponents(viaturaInput),
+                        new ActionRowBuilder().addComponents(motoristaInput),
+                        new ActionRowBuilder().addComponents(chefeInput),
+                        new ActionRowBuilder().addComponents(auxiliar1Input),
+                        new ActionRowBuilder().addComponents(auxiliar2Input),
+                    );
+
+                    // Exibe o modal imediatamente para evitar timeout de interação
+                    await i.showModal(modal);
+                    travadosNoClique.delete(userId);
+
+                    // Coleta o envio do modal de forma isolada
+                    const submitted = await i.awaitModalSubmit({
+                        time: 300 * 1000, 
+                        filter: sub => sub.user.id === userId && sub.customId === modalId,
+                    }).catch(() => null);
+
+                    if (!submitted) return;
+
+                    // Validação de segurança final pós-submissão
+                    for (const dados of global.pontosAtivos.values()) {
+                        if (dados.userId === userId) {
+                            return await submitted.reply({ 
                                 content: '❌ Você já possui um ponto aberto.', 
                                 ephemeral: true 
                             });
@@ -195,12 +209,10 @@ module.exports = {
                             .setEmoji('🛑')
                     );
 
-                    const canalDestino = await submitted.client.channels.fetchID ? await submitted.client.channels.fetch(ID_CANAL_PONTO).catch(() => null) : null;
-                    // Correção segura para o canal de destino
                     const canalAlvo = submitted.guild ? submitted.guild.channels.cache.get(ID_CANAL_PONTO) || await submitted.client.channels.fetch(ID_CANAL_PONTO).catch(() => null) : null;
 
                     if (!canalAlvo) {
-                        return submitted.reply({ content: '❌ Erro: Não foi possível encontrar o canal de destino do ponto configurado.', ephemeral: true });
+                        return await submitted.reply({ content: '❌ Erro: Não foi possível encontrar o canal de destino do ponto configurado.', ephemeral: true });
                     }
 
                     await submitted.reply({ content: '✅ Ponto aberto com sucesso!', ephemeral: true });
@@ -230,8 +242,9 @@ module.exports = {
                         if (!dados) return;
 
                         if (interPonto.customId === 'adicionar_obs') {
+                            const modalObsId = `modal_obs_${interPonto.user.id}_${Date.now()}`;
                             const modalObs = new ModalBuilder()
-                                .setCustomId(`modal_obs_${interPonto.id}`)
+                                .setCustomId(modalObsId)
                                 .setTitle('Adicionar Observação');
 
                             const obsInput = new TextInputBuilder()
@@ -244,32 +257,32 @@ module.exports = {
                             modalObs.addComponents(new ActionRowBuilder().addComponents(obsInput));
                             await interPonto.showModal(modalObs);
 
-                            try {
-                                const submittedObs = await interPonto.awaitModalSubmit({
-                                    time: 120 * 1000,
-                                    filter: sub => sub.user.id === interPonto.user.id && sub.customId === `modal_obs_${interPonto.id}`,
-                                });
+                            const submittedObs = await interPonto.awaitModalSubmit({
+                                time: 120 * 1000,
+                                filter: sub => sub.user.id === interPonto.user.id && sub.customId === modalObsId,
+                            }).catch(() => null);
 
-                                const novaObs = submittedObs.fields.getTextInputValue('observacao_texto');
-                                const horaObs = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                                const nomeServidor = submittedObs.member ? submittedObs.member.displayName : submittedObs.user.username;
-                                
-                                dados.listaObservacoes.push(`• **[${horaObs}] ${nomeServidor}:** ${novaObs}`);
-                                global.pontosAtivos.set(mensagemPonto.id, dados);
+                            if (!submittedObs) return;
 
-                                const embedAtualizado = new EmbedBuilder()
-                                    .setTitle(`⏱️ Ponto #${dados.numero} - Aberto`)
-                                    .setColor(0x00FF00)
-                                    .addFields(montarCampos(dados.listaObservacoes))
-                                    .setFooter({ text: `Ponto aberto por ${dados.nomeCriador} • ${dados.horaAberturaStr}` });
+                            const novaObs = submittedObs.fields.getTextInputValue('observacao_texto');
+                            const horaObs = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                            const nomeServidor = submittedObs.member ? submittedObs.member.displayName : submittedObs.user.username;
+                            
+                            dados.listaObservacoes.push(`• **[${horaObs}] ${nomeServidor}:** ${novaObs}`);
+                            global.pontosAtivos.set(mensagemPonto.id, dados);
 
-                                await submittedObs.update({ embeds: [embedAtualizado], components: [rowPonto] });
-                            } catch (e) {}
+                            const embedAtualizado = new EmbedBuilder()
+                                .setTitle(`⏱️ Ponto #${dados.numero} - Aberto`)
+                                .setColor(0x00FF00)
+                                .addFields(montarCampos(dados.listaObservacoes))
+                                .setFooter({ text: `Ponto aberto por ${dados.nomeCriador} • ${dados.horaAberturaStr}` });
+
+                            await submittedObs.update({ embeds: [embedAtualizado], components: [rowPonto] });
                         }
 
                         if (interPonto.customId === 'encerrar_ponto_individual') {
                             if (interPonto.user.id !== dados.userId) {
-                                return interPonto.reply({ content: '❌ Apenas o militar que abriu este ponto pode encerra-lo!', ephemeral: true });
+                                return await interPonto.reply({ content: '❌ Apenas o militar que abriu este ponto pode encerra-lo!', ephemeral: true });
                             }
 
                             const horaFechamento = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
@@ -321,7 +334,9 @@ module.exports = {
                         }
                     });
 
-                } catch (err) {}
+                } catch (err) {
+                    travadosNoClique.delete(userId);
+                }
             }
         });
     },
