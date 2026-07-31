@@ -2,6 +2,7 @@ const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder
 
 let contadorAvaliacoes = 1;
 const CANAL_LOG_ESTAGIO = '1529563658680799294';
+const CARGO_PERMITIDO = '1502362884221571235';
 const avaliacoesEmAndamento = new Map();
 
 module.exports = {
@@ -35,6 +36,13 @@ module.exports = {
     async handleInteraction(interaction) {
         try {
             if (interaction.isButton() && interaction.customId === 'btn_iniciar_avaliacao') {
+                if (!interaction.member.roles.cache.has(CARGO_PERMITIDO)) {
+                    return await interaction.reply({
+                        content: '❌ Você não possui permissão para utilizar este painel de avaliação.',
+                        ephemeral: true
+                    });
+                }
+
                 const userSelect = new UserSelectMenuBuilder()
                     .setCustomId('select_policial_avaliado')
                     .setPlaceholder('🔍 | Selecione o policial que será avaliado:')
@@ -51,6 +59,13 @@ module.exports = {
             }
 
             if (interaction.isUserSelectMenu() && interaction.customId === 'select_policial_avaliado') {
+                if (!interaction.member.roles.cache.has(CARGO_PERMITIDO)) {
+                    return await interaction.reply({
+                        content: '❌ Você não possui permissão para realizar esta ação.',
+                        ephemeral: true
+                    });
+                }
+
                 const policialAvaliadoId = interaction.values[0];
                 avaliacoesEmAndamento.set(interaction.user.id, policialAvaliadoId);
 
@@ -97,6 +112,13 @@ module.exports = {
             }
 
             if (interaction.isModalSubmit() && interaction.customId === 'modal_formulario_avaliacao') {
+                if (!interaction.member.roles.cache.has(CARGO_PERMITIDO)) {
+                    return await interaction.reply({
+                        content: '❌ Você não possui permissão para submeter esta avaliação.',
+                        ephemeral: true
+                    });
+                }
+
                 await interaction.deferReply({ ephemeral: true });
 
                 const n1 = parseFloat(interaction.fields.getTextInputValue('nota_comportamento').replace(',', '.')) || 0;
