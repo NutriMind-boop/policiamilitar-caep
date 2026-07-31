@@ -1,6 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 
-// Caminho para o contador compartilhado (caso use o arquivo JSON)
 const fs = require('fs');
 const path = require('path');
 const caminhoDadosPonto = path.join(__dirname, '..', 'dados_ponto.json');
@@ -66,25 +65,24 @@ module.exports = {
         const mensagemPainel = await interaction.channel.send({ embeds: [embedPainel], components: [row] });
         await interaction.reply({ content: '✅ Painel de ponto enviado com sucesso neste canal!', ephemeral: true });
 
-        // Coletor para escutar os cliques no botão do painel enviado
         const collectorPainel = mensagemPainel.createMessageComponentCollector();
 
         collectorPainel.on('collect', async i => {
             if (i.customId === 'abrir_modal_ponto_painel') {
                 const userId = i.user.id;
 
-                // Validação de ponto já aberto
-                for (const [_, dados] of global.pontosAtivos.entries()) {
+                // Validação limpa verificando se o usuário já tem ponto ativo
+                for (const dados of global.pontosAtivos.values()) {
                     if (dados.userId === userId) {
                         return i.reply({ 
-                            content: '❌ Você já possui um ponto aberto, não será possível abrir outro.', 
+                            content: '❌ Você já possui um ponto aberto, encerre o atual antes de abrir outro.', 
                             ephemeral: true 
                         });
                     }
                 }
 
                 const modal = new ModalBuilder()
-                    .setCustomId('modal_ponto_painel_unico')
+                    .setCustomId(`modal_ponto_${i.id}`)
                     .setTitle('Registro de Ponto da Equipe');
 
                 const viaturaInput = new TextInputBuilder()
@@ -135,13 +133,14 @@ module.exports = {
                 try {
                     const submitted = await i.awaitModalSubmit({
                         time: 300 * 1000, 
-                        filter: sub => sub.user.id === i.user.id && sub.customId === 'modal_ponto_painel_unico',
+                        filter: sub => sub.user.id === userId && sub.customId === `modal_ponto_${i.id}`,
                     });
 
-                    for (const [_, dados] of global.pontosAtivos.entries()) {
+                    // Nova checagem pós-modal para evitar concorrência dupla
+                    for (const dados of global.pontosAtivos.values()) {
                         if (dados.userId === userId) {
                             return submitted.reply({ 
-                                content: '❌ Você já possui um ponto aberto, não será possível abrir outro.', 
+                                content: '❌ Você já possui um ponto aberto.', 
                                 ephemeral: true 
                             });
                         }
@@ -198,11 +197,11 @@ module.exports = {
 
                     const canalDestino = await submitted.client.channels.fetch(ID_CANAL_PONTO).catch(() => null);
 
-                    await submitted.reply({ content: '✅ Ponto aberto com sucesso!', ephemeral: true });
-
                     if (!canalDestino) {
-                        return submitted.followUp({ content: '❌ Erro: Não foi possível encontrar o canal de destino do ponto configurado.', ephemeral: true });
+                        return submitted.reply({ content: '❌ Erro: Não foi possível encontrar o canal de destino do ponto configurado.', ephemeral: true });
                     }
+
+                    await submitted.reply({ content: '✅ Ponto aberto com sucesso!', ephemeral: true });
 
                     const mensagemPonto = await canalDestino.send({ embeds: [embed], components: [rowPonto] });
 
@@ -230,7 +229,7 @@ module.exports = {
 
                         if (interPonto.customId === 'adicionar_obs') {
                             const modalObs = new ModalBuilder()
-                                .setCustomId('modal_obs')
+                                .setCustomId(`modal_obs_${interPonto.id}`)
                                 .setTitle('Adicionar Observação');
 
                             const obsInput = new TextInputBuilder()
@@ -246,7 +245,7 @@ module.exports = {
                             try {
                                 const submittedObs = await interPonto.awaitModalSubmit({
                                     time: 120 * 1000,
-                                    filter: sub => sub.user.id === interPonto.user.id && sub.customId === 'modal_obs',
+                                    filter: sub => sub.user.id === interPonto.user.id && sub.customId === `modal_obs_${interPonto.id}`,
                                 });
 
                                 const novaObs = submittedObs.fields.getTextInputValue('observacao_texto');
@@ -289,8 +288,8 @@ module.exports = {
                                 .addFields(camposFechado)
                                 .setFooter({ text: `Ponto encerrado por ${interPonto.member ? interPonto.member.displayName : interPonto.user.username} • ${horaFechamento}` });
 
-                            await interPonto.update({ embeds: [embedFechado], components: [] });
                             global.pontosAtivos.delete(mensagemPonto.id);
+                            await interPonto.update({ embeds: [embedFechado], components: [] });
                             collectorPonto.stop();
                         }
                     });
@@ -315,8 +314,8 @@ module.exports = {
                                 .addFields(camposCancelado)
                                 .setFooter({ text: `Ponto cancelado automaticamente após 3 horas • ${horaCancelamento}` });
 
-                            await mensagemPonto.edit({ embeds: [embedCancelado], components: [] }).catch(() => {});
                             global.pontosAtivos.delete(mensagemPonto.id);
+                            await mensagemPonto.edit({ embeds: [embedCancelado], components: [] }).catch(() => {});
                         }
                     });
 
