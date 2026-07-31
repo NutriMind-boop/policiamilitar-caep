@@ -63,6 +63,7 @@ module.exports = {
             const duracaoTexto = interaction.fields.getTextInputValue('duracao_ausencia');
             const motivo = interaction.fields.getTextInputValue('motivo_ausencia');
             const cargoId = '1532717852388229180';
+            const canalLogsId = '1502356441640734853';
 
             // Extrai apenas os números da duração informada (ex: "2 dias" vira o número 2)
             const matchDias = duracaoTexto.match(/\d+/);
@@ -80,24 +81,29 @@ module.exports = {
                 console.error('❌ Erro ao adicionar o cargo de ausência:', error);
             }
 
-            // Monta o Embed idêntico ao solicitado
+            // Monta o Embed com todos os campos destacados e nome clicável
             const registroEmbed = new EmbedBuilder()
                 .setColor(0xED4245)
                 .setTitle('Registro de Ausência')
                 .setDescription(
-                    `👮 | **Registrado por:** ${interaction.member.displayName} | ${interaction.user.id}\n` +
-                    `⏱️ | **Duração da ausência:** ${qtdDias} Dia(s)\n` +
-                    `📅 | **Data de retorno:** ${dataFormatada}\n` +
-                    `📝 | **Motivo:** ${motivo}`
+                    `👮 | **Registrado por:** \`${interaction.member.displayName}\` (${interaction.user})\n` +
+                    `⏱️ | **Duração da ausência:** \`${qtdDias} Dia(s)\`\n` +
+                    `📅 | **Data de retorno:** \`${dataFormatada}\`\n` +
+                    `📝 | **Motivo:** \`${motivo}\``
                 )
                 .setFooter({ text: 'Secretaria da Segurança Pública - Polícia Militar' })
                 .setTimestamp();
 
-            // Responde de forma privada para o usuário avisando que deu certo
-            await interaction.reply({ content: '✅ Ausência registrada e cargo aplicado com sucesso!', ephemeral: true });
+            // Busca o canal de destino específico pelo ID
+            const canalDestino = await interaction.guild.channels.fetch(canalLogsId).catch(() => null);
+            if (canalDestino) {
+                await canalDestino.send({ embeds: [registroEmbed] });
+            } else {
+                console.error('❌ Não foi possível encontrar o canal de destino da ausência!');
+            }
 
-            // Envia o embed de registro no canal onde o botão foi acionado
-            await interaction.channel.send({ embeds: [registroEmbed] });
+            // Responde de forma privada para o usuário avisando que deu certo
+            await interaction.reply({ content: '✅ Ausência registrada, cargo aplicado e encaminhada para o canal de registros com sucesso!', ephemeral: true });
             return true;
         }
 
