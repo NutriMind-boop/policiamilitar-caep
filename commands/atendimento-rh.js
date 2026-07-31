@@ -71,7 +71,7 @@ module.exports = {
             return await interaction.showModal(modal);
         }
 
-        // 2. Enviou o Modal -> Cria o canal de Ticket restrito
+        // 2. Enviou o Modal -> Cria o canal de Ticket restrito com emoji, username e opção escolhida
         if (interaction.isModalSubmit() && interaction.customId.startsWith('modal_ticket_')) {
             await interaction.deferReply({ ephemeral: true });
 
@@ -81,15 +81,25 @@ module.exports = {
             const codigoTicket = gerarCodigoTicket();
 
             const nomesCanais = {
-                'ticket_baixa_funcional': 'baixa-',
-                'ticket_alteracao_discord': 'discord-',
-                'ticket_outros_assuntos': 'outros-',
-                'ticket_reportar_problema': 'problema-',
-                'ticket_falar_instrutores': 'instrutores-'
+                'ticket_baixa_funcional': 'baixa-funcional',
+                'ticket_alteracao_discord': 'alteracao-discord',
+                'ticket_outros_assuntos': 'outros-assuntos',
+                'ticket_reportar_problema': 'reportar-problema',
+                'ticket_falar_instrutores': 'dec-instrutores'
             };
 
-            const prefixo = nomesCanais[escolha] || 'ticket-';
-            const nomeCanal = `${prefixo}${interaction.user.username}`.toLowerCase();
+            const nomeBase = nomesCanais[escolha] || 'atendimento';
+            
+            // Pega estritamente o username oficial da conta do Discord em minúsculas
+            const username = interaction.user.username
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9]/g, '-');
+
+            // Formata o nome do canal: 📁-username-opcao
+            let nomeCanal = `📁-${username}-${nomeBase}`.replace(/-+/g, '-');
+            if (nomeCanal.length > 100) nomeCanal = nomeCanal.substring(0, 100);
 
             const labelsOpcoes = {
                 'ticket_baixa_funcional': 'Baixa de funcional',
@@ -260,15 +270,24 @@ module.exports = {
             return await interaction.showModal(modal);
         }
 
-        // 9. Envio do Modal de Alterar Nome
+        // 9. Envio do Modal de Alterar Nome (Garante o emoji 📁 na frente e formatação correta)
         if (interaction.isModalSubmit() && interaction.customId === 'modal_alterar_nome') {
-            const novoNome = interaction.fields.getTextInputValue('novo_nome_canal').toLowerCase().replace(/\s+/g, '-');
+            let novoNomeDigitado = interaction.fields.getTextInputValue('novo_nome_canal').toLowerCase().trim();
+            
+            novoNomeDigitado = novoNomeDigitado
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9]/g, '-')
+                .replace(/-+/g, '-');
+
+            const novoNomeCanal = novoNomeDigitado.startsWith('📁') ? novoNomeDigitado : `📁-${novoNomeDigitado}`;
             
             try {
-                await interaction.channel.setName(novoNome);
-                return interaction.reply({ content: `✅ Nome do canal alterado com sucesso para: \`${novoNome}\``, ephemeral: true });
+                await interaction.channel.setName(novoNomeCanal);
+                return interaction.reply({ content: `✅ Nome do canal alterado com sucesso para: \`${novoNomeCanal}\``, ephemeral: true });
             } catch (err) {
-                return interaction.reply({ content: '❌ Erro ao alterar o nome do canal.', ephemeral: true });
+                console.error('❌ Erro ao alterar nome do canal:', err);
+                return interaction.reply({ content: '❌ Erro ao alterar o nome do canal. Verifique se o nome possui caracteres permitidos pelo Discord.', ephemeral: true });
             }
         }
 
