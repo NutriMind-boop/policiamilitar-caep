@@ -1,4 +1,4 @@
-const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, UserSelectMenuBuilder, ChannelType, PermissionFlagsBits, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
+const { SlashCommandBuilder, EmbedBuilder, ActionRowBuilder, StringSelectMenuBuilder, UserSelectMenuBuilder, ChannelType, PermissionFlagsBits, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle, AttachmentBuilder } = require('discord.js');
 
 // Função para gerar um código de ticket aleatório estilo "3HE5NMEO"
 function gerarCodigoTicket() {
@@ -11,6 +11,7 @@ function gerarCodigoTicket() {
 }
 
 const CARGO_STAFF_ID = '1502362863149518898';
+const CANAL_LOG_ID = '1532776900949442880';
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -90,14 +91,12 @@ module.exports = {
 
             const nomeBase = nomesCanais[escolha] || 'atendimento';
             
-            // Pega estritamente o username oficial da conta do Discord em minúsculas
             const username = interaction.user.username
                 .toLowerCase()
                 .normalize('NFD')
                 .replace(/[\u0300-\u036f]/g, '')
                 .replace(/[^a-z0-9]/g, '-');
 
-            // Formata o nome do canal: 📁-username-opcao
             let nomeCanal = `📁-${username}-${nomeBase}`.replace(/-+/g, '-');
             if (nomeCanal.length > 100) nomeCanal = nomeCanal.substring(0, 100);
 
@@ -115,6 +114,7 @@ module.exports = {
                     name: nomeCanal,
                     type: ChannelType.GuildText,
                     parent: categoriaId,
+                    topic: `ticket_owner_${interaction.user.id}_code_${codigoTicket}`,
                     permissionOverwrites: [
                         {
                             id: interaction.guild.id,
@@ -130,7 +130,7 @@ module.exports = {
                         },
                         {
                             id: interaction.client.user.id,
-                            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels],
+                            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ReadMessageHistory],
                         }
                     ],
                 });
@@ -168,16 +168,119 @@ module.exports = {
             }
         }
 
-        // 3. Botão: Finalizar Atendimento
+        // 3. Botão: Finalizar Atendimento (Abre o Modal pedindo a resolução)
         if (interaction.isButton() && interaction.customId === 'btn_fechar_ticket') {
             if (!interaction.member.roles.cache.has(CARGO_STAFF_ID) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                 return interaction.reply({ content: '❌ Apenas membros da staff com o cargo autorizado podem finalizar este atendimento!', ephemeral: true });
             }
 
-            await interaction.reply({ content: '🔒 Este atendimento foi encerrado. O canal será deletado em 5 segundos...', ephemeral: false });
+            const modal = new ModalBuilder()
+                .setCustomId('modal_fechar_ticket')
+                .setTitle('Finalizar Atendimento');
+
+            const resolucaoInput = new TextInputBuilder()
+                .setCustomId('resolucao_ticket')
+                .setLabel('Qual foi a resolução do atendimento?')
+                .setStyle(TextInputStyle.Paragraph)
+                .setPlaceholder('Ex: Orientado, aguardar os anuncios de cursos...')
+                .setRequired(true);
+
+            modal.addComponents(new ActionRowBuilder().addComponents(resolucaoInput));
+            return await interaction.showModal(modal);
+        }
+
+        // 4. Envio do Modal de Finalizar Atendimento (Gera o histórico, envia o log e deleta o canal)
+        if (interaction.isModalSubmit() && interaction.customId === 'modal_fechar_ticket') {
+            if (!interaction.member.roles.cache.has(CARGO_STAFF_ID) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
+                return interaction.reply({ content: '❌ Apenas membros da staff podem finalizar este atendimento!', ephemeral: true });
+            }
+
+            await interaction.reply({ content: '🔒 Processando fechamento do ticket e gerando log...', ephemeral: true });
+
+            const resolucao = interaction.fields.getTextInputValue('resolucao_ticket');
+            const canal = interaction.channel;
+            const topico = canal.topic || '';
+
+            let autorId = null;
+            let codigoTicket = 'DESCONHECIDO';
+
+            const matchOwner = topico.match(/ticket_owner_(\d+)/);
+            if (matchOwner) autorId = matchOwner[1];
+
+            const matchCode = topico.match(/code_([A-Z0-9]+)/);
+            if (matchCode) codigoTicket = matchCode[1];
+
+            let textoHistorico = `=== HISTÓRICO DO TICKET (${codigoTicket}) ===\nCanal: #${canal.name}\nData: ${new Date().toLocaleString('pt-BR')}\n\n`;
+            try {
+                let mensagens = [];
+                let ultimoId;
+                
+                while (true) {
+                    const options = { limit: 100 };
+                    if (ultimoId) options.before = ultimoId;
+                    const fetched = await canal.messages.fetch(options);
+                    if (fetched.size === 0) break;
+                    
+                    mensagens.push(...fetched.values());
+                    ultimoId = fetched.last().id;
+                    if (fetched.size < 100) break;
+                }
+
+                mensagens.reverse();
+
+                for (const m of mensagens) {
+                    const dataMsg = m.createdAt.toLocaleString('pt-BR');
+                    const autorMsg = `${m.author.tag} (${m.author.id})`;
+                    let conteudo = m.content;
+                    
+                    if (m.embeds.length > 0) conteudo += ` [Embed anexada]`;
+                    if (m.attachments.size > 0) conteudo += ` [Anexos: ${m.attachments.map(a => a.url).join(', ')}]`;
+
+                    textoHistorico += `[${dataMsg}] ${autorMsg}: ${conteudo}\n`;
+                }
+            } catch (err) {
+                console.error('❌ Erro ao coletar histórico de mensagens:', err);
+                textoHistorico += `\n[Erro ao coletar histórico completo automático]\n`;
+            }
+
+            const buffer = Buffer.from(textoHistorico, 'utf-8');
+            const attachment = new AttachmentBuilder(buffer, { name: `historico-${codigoTicket.toLowerCase()}.txt` });
+
+            try {
+                const canalLog = await interaction.client.channels.fetch(CANAL_LOG_ID);
+                if (canalLog) {
+                    const embedLog = new EmbedBuilder()
+                        .setColor(0xED4245)
+                        .setTitle('Atendimento finalizado!')
+                        .setDescription(
+                            `🎟️ **Ticket aberto por:**\n${autorId ? `<@${autorId}>` : 'Desconhecido'}\n\n` +
+                            `👥 **Ticket finalizado por:**\n${interaction.user}\n\n` +
+                            `🎫 | **Código:**\n\`${codigoTicket}\`\n\n` +
+                            `📅 | **Data e hora:**\n\`${new Date().toLocaleString('pt-BR')}\`\n\n` +
+                            `⚖️ | **Resolução:**\n\`${resolucao}\``
+                        )
+                        .setThumbnail('https://cdn.discordapp.com/attachments/1502291744228769867/1532149715842629722/image.png')
+                        .setFooter({ text: 'Secretaria da Segurança Pública - Polícia Militar' })
+                        .setTimestamp();
+
+                    const botaoHistorico = new ActionRowBuilder().addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`ver_historico_${codigoTicket}`)
+                            .setLabel('Historico de mensagens')
+                            .setStyle(ButtonStyle.Secondary)
+                            .setEmoji('📄')
+                    );
+
+                    await canalLog.send({ embeds: [embedLog], components: [botaoHistorico], files: [attachment] });
+                }
+            } catch (logErr) {
+                console.error('❌ Erro ao enviar log para o canal:', logErr);
+            }
+
+            await interaction.followUp({ content: '🔒 Atendimento finalizado com sucesso! O canal será deletado em 5 segundos...', ephemeral: false });
             setTimeout(async () => {
                 try {
-                    await interaction.channel.delete();
+                    await canal.delete();
                 } catch (err) {
                     console.error('❌ Erro ao deletar o canal:', err);
                 }
@@ -185,7 +288,12 @@ module.exports = {
             return true;
         }
 
-        // 4. Botão: Adicionar Usuário (Abre o menu suspenso de membros)
+        // 5. Botão: Ver Histórico (Aviso interativo no log)
+        if (interaction.isButton() && interaction.customId.startsWith('ver_historico_')) {
+            return interaction.reply({ content: '📄 O histórico completo deste atendimento está anexado diretamente na mensagem de log acima em formato de arquivo `.txt`.', ephemeral: true });
+        }
+
+        // 6. Botão: Adicionar Usuário
         if (interaction.isButton() && interaction.customId === 'btn_adicionar_usuario') {
             if (!interaction.member.roles.cache.has(CARGO_STAFF_ID) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                 return interaction.reply({ content: '❌ Apenas membros da staff autorizados podem adicionar usuários ao ticket!', ephemeral: true });
@@ -202,7 +310,7 @@ module.exports = {
             return await interaction.reply({ content: '👇 Selecione abaixo o policial que deseja **adicionar** ao ticket:', components: [row], ephemeral: true });
         }
 
-        // 5. Seleção no Menu: Adicionar Usuário
+        // 7. Seleção no Menu: Adicionar Usuário
         if (interaction.isUserSelectMenu() && interaction.customId === 'select_adicionar_usuario') {
             const usuarioSelecionado = interaction.users.first();
             
@@ -219,7 +327,7 @@ module.exports = {
             }
         }
 
-        // 6. Botão: Remover Usuário (Abre o menu suspenso com os usuários com acesso)
+        // 8. Botão: Remover Usuário
         if (interaction.isButton() && interaction.customId === 'btn_remover_usuario') {
             if (!interaction.member.roles.cache.has(CARGO_STAFF_ID) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                 return interaction.reply({ content: '❌ Apenas membros da staff autorizados podem remover usuários do ticket!', ephemeral: true });
@@ -236,7 +344,7 @@ module.exports = {
             return await interaction.reply({ content: '👇 Selecione abaixo o policial que deseja **remover** do ticket:', components: [row], ephemeral: true });
         }
 
-        // 7. Seleção no Menu: Remover Usuário
+        // 9. Seleção no Menu: Remover Usuário
         if (interaction.isUserSelectMenu() && interaction.customId === 'select_remover_usuario') {
             const usuarioSelecionado = interaction.users.first();
             
@@ -249,7 +357,7 @@ module.exports = {
             }
         }
 
-        // 8. Botão: Alterar Nome do Ticket
+        // 10. Botão: Alterar Nome do Ticket
         if (interaction.isButton() && interaction.customId === 'btn_alterar_nome') {
             if (!interaction.member.roles.cache.has(CARGO_STAFF_ID) && !interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
                 return interaction.reply({ content: '❌ Apenas membros da staff podem alterar o nome do ticket!', ephemeral: true });
@@ -270,7 +378,7 @@ module.exports = {
             return await interaction.showModal(modal);
         }
 
-        // 9. Envio do Modal de Alterar Nome (Corrigido para tratar espaços, maiúsculas, caracteres especiais e garantir o envio correto)
+        // 11. Envio do Modal de Alterar Nome
         if (interaction.isModalSubmit() && interaction.customId === 'modal_alterar_nome') {
             const inputDigitado = interaction.fields.getTextInputValue('novo_nome_canal');
             
