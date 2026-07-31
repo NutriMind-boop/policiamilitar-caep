@@ -77,7 +77,6 @@ client.on('interactionCreate', async interaction => {
                     const isExonerar = name === 'exonerar' && (id.includes('exonerar') || id.includes('policiais'));
                     const isAusencia = name === 'painel-ausencia' && (id.includes('ausencia') || id.includes('modal_registrar_ausencia') || id.includes('btn_abrir_ausencia'));
                     
-                    // Suporte seguro para o avaliar-estagio (botão, user select menu e modal)
                     const isAvaliarEstagio = name === 'avaliar-estagio' && (
                         id.includes('estagio') || 
                         id.includes('avaliacao') || 
@@ -85,7 +84,6 @@ client.on('interactionCreate', async interaction => {
                         id.includes('policial_avaliado')
                     );
 
-                    // Adicionando suporte seguro para o atendimento-rh (menus de select de usuarios, botoes e modais)
                     const isAtendimentoRh = name === 'atendimento-rh' && (
                         id.includes('atendimento_rh') || 
                         id.includes('ticket') || 
@@ -97,9 +95,19 @@ client.on('interactionCreate', async interaction => {
                         id.includes('select_remover_usuario')
                     );
 
+                    // Adicionado suporte seguro para o sistema de Ponto e Painel de Ponto
+                    const isPonto = (name === 'ponto' || name === 'painelponto') && (
+                        id.includes('ponto') || 
+                        id.includes('modal_ponto') || 
+                        id.includes('modal_obs') || 
+                        id.includes('adicionar_obs') || 
+                        id.includes('encerrar_ponto_individual') ||
+                        id.includes('abrir_modal_ponto_painel')
+                    );
+
                     const generalMatch = id.includes(name);
 
-                    if (!isPainelFuncional && !isExonerar && !isAusencia && !isAvaliarEstagio && !isAtendimentoRh && !generalMatch) {
+                    if (!isPainelFuncional && !isExonerar && !isAusencia && !isAvaliarEstagio && !isAtendimentoRh && !isPonto && !generalMatch) {
                         continue; // Pula este comando se o ID não tiver relação com ele, evitando falsos positivos
                     }
                 }
@@ -120,9 +128,9 @@ client.on('interactionCreate', async interaction => {
             }
 
             // Fallback manual para IDs legados específicos
-            if (interaction.customId === 'abrir_modal_ponto_painel') {
-                const pontoCommand = client.commands.get('ponto');
-                if (pontoCommand) return await pontoCommand.execute(interaction);
+            if (interaction.customId === 'abrir_modal_ponto_painel' || interaction.customId === 'adicionar_obs' || interaction.customId === 'encerrar_ponto_individual') {
+                const pontoCommand = client.commands.get('ponto') || client.commands.get('painelponto');
+                if (pontoCommand) return; // O coletor interno dentro do comando gerencia o clique
             }
             if (interaction.customId === 'btn_boletim_interno') {
                 const boletimCommand = client.commands.get('boletim-interno');
@@ -156,7 +164,7 @@ client.on('interactionCreate', async interaction => {
             if (interaction.customId === 'modal_certificado') {
                 const emitirRegistrosCommand = client.commands.get('emitir-registros');
                 if (emitirRegistrosCommand && emitirRegistrosCommand.handleModal) {
-                    return await emitirRegistrosCommand.handleModal(interaction);
+                    return await emitirRegistrosCommand.handleModal(htmlinteraction);
                 }
             }
 
