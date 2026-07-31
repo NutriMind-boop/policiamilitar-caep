@@ -66,7 +66,6 @@ client.on('interactionCreate', async interaction => {
                 if (interaction.customId) {
                     const id = interaction.customId;
                     
-                    // CORRIGIDO: Adicionando todos os IDs exatos usados no painel-funcional
                     const isPainelFuncional = name === 'painel-funcional' && (
                         id.includes('funcional') || 
                         id.includes('unidade') || 
@@ -78,6 +77,14 @@ client.on('interactionCreate', async interaction => {
                     const isExonerar = name === 'exonerar' && (id.includes('exonerar') || id.includes('policiais'));
                     const isAusencia = name === 'painel-ausencia' && (id.includes('ausencia') || id.includes('modal_registrar_ausencia') || id.includes('btn_abrir_ausencia'));
                     
+                    // Suporte seguro para o avaliar-estagio (botão, user select menu e modal)
+                    const isAvaliarEstagio = name === 'avaliar-estagio' && (
+                        id.includes('estagio') || 
+                        id.includes('avaliacao') || 
+                        id.includes('iniciar_avaliacao') || 
+                        id.includes('policial_avaliado')
+                    );
+
                     // Adicionando suporte seguro para o atendimento-rh (menus de select de usuarios, botoes e modais)
                     const isAtendimentoRh = name === 'atendimento-rh' && (
                         id.includes('atendimento_rh') || 
@@ -92,7 +99,7 @@ client.on('interactionCreate', async interaction => {
 
                     const generalMatch = id.includes(name);
 
-                    if (!isPainelFuncional && !isExonerar && !isAusencia && !isAtendimentoRh && !generalMatch) {
+                    if (!isPainelFuncional && !isExonerar && !isAusencia && !isAvaliarEstagio && !isAtendimentoRh && !generalMatch) {
                         continue; // Pula este comando se o ID não tiver relação com ele, evitando falsos positivos
                     }
                 }
