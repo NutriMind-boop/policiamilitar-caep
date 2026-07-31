@@ -71,7 +71,7 @@ module.exports = {
             if (i.customId === 'abrir_modal_ponto_painel') {
                 const userId = i.user.id;
 
-                // Validação limpa verificando se o usuário já tem ponto ativo
+                // Validação de ponto ativo
                 for (const dados of global.pontosAtivos.values()) {
                     if (dados.userId === userId) {
                         return i.reply({ 
@@ -136,7 +136,7 @@ module.exports = {
                         filter: sub => sub.user.id === userId && sub.customId === `modal_ponto_${i.id}`,
                     });
 
-                    // Nova checagem pós-modal para evitar concorrência dupla
+                    // Dupla checagem pós-envio do modal
                     for (const dados of global.pontosAtivos.values()) {
                         if (dados.userId === userId) {
                             return submitted.reply({ 
@@ -195,15 +195,17 @@ module.exports = {
                             .setEmoji('🛑')
                     );
 
-                    const canalDestino = await submitted.client.channels.fetch(ID_CANAL_PONTO).catch(() => null);
+                    const canalDestino = await submitted.client.channels.fetchID ? await submitted.client.channels.fetch(ID_CANAL_PONTO).catch(() => null) : null;
+                    // Correção segura para o canal de destino
+                    const canalAlvo = submitted.guild ? submitted.guild.channels.cache.get(ID_CANAL_PONTO) || await submitted.client.channels.fetch(ID_CANAL_PONTO).catch(() => null) : null;
 
-                    if (!canalDestino) {
+                    if (!canalAlvo) {
                         return submitted.reply({ content: '❌ Erro: Não foi possível encontrar o canal de destino do ponto configurado.', ephemeral: true });
                     }
 
                     await submitted.reply({ content: '✅ Ponto aberto com sucesso!', ephemeral: true });
 
-                    const mensagemPonto = await canalDestino.send({ embeds: [embed], components: [rowPonto] });
+                    const mensagemPonto = await canalAlvo.send({ embeds: [embed], components: [rowPonto] });
 
                     global.pontosAtivos.set(mensagemPonto.id, {
                         numero: numeroFormatado,
