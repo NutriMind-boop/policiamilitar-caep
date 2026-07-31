@@ -181,6 +181,8 @@ module.exports = {
                     return await interaction.reply({ content: '❌ Você não tem permissão para configurar esta funcional!', ephemeral: true });
                 }
 
+                await interaction.deferUpdate();
+
                 const selectPatente = new StringSelectMenuBuilder()
                     .setCustomId('select_patente_cargo')
                     .setPlaceholder('⭐ | Selecione a patente:')
@@ -194,16 +196,18 @@ module.exports = {
                         .setEmoji('🔄')
                 );
 
-                return await interaction.update({
+                return await interaction.editReply({
                     components: [rowSelect, rowVoltar]
                 });
             }
 
-            // 5. Botão de Voltar (setinha) para retornar aos botões originais do log
+            // 5. Botão de Voltar para retornar aos botões originais do log
             if (interaction.isButton() && interaction.customId === 'btn_voltar_painel') {
                 if (!interaction.member.roles.cache.has(CARGO_AUTORIZADO)) {
                     return await interaction.reply({ content: '❌ Sem permissão!', ephemeral: true });
                 }
+
+                await interaction.deferUpdate();
 
                 const botoesAcao = new ActionRowBuilder().addComponents(
                     new ButtonBuilder()
@@ -222,7 +226,7 @@ module.exports = {
                         .setEmoji('⚙️')
                 );
 
-                return await interaction.update({
+                return await interaction.editReply({
                     components: [botoesAcao]
                 });
             }
